@@ -289,18 +289,12 @@
   #castle .floor-head{margin-bottom:14px;}
   .game-frame{
     position:relative;
-    width:100%;max-width:960px;margin:0 auto;
-    display:flex;justify-content:center;
-    border:1px solid rgba(217,201,164,0.25);
-    background:#000;
-    box-shadow:0 30px 80px rgba(0,0,0,0.85);
+    width:100vw;margin-left:calc(-50vw + 50%);
   }
   .game-frame iframe{
     display:block;border:0;
+    width:100%;
     aspect-ratio:900/506;
-    height:min(506px, calc(100vh - 140px));
-    width:auto;
-    max-width:100%;
   }
   .game-note{
     text-align:center;font-size:11px;color:#8a7c5f;margin-top:10px;letter-spacing:1px;
@@ -466,7 +460,6 @@
        black — same treatment #entrance already gets on mobile. */
     #castle{min-height:auto;padding:40px 18px 24px;}
     #castle .floor-head{margin-bottom:16px;}
-    .game-frame iframe{height:auto;width:100%;max-width:100%;}
   }
   @media (max-width:400px){
     .directory{grid-template-columns:1fr;}
