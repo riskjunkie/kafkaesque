@@ -299,6 +299,17 @@
   .game-note{
     text-align:center;font-size:11px;color:#8a7c5f;margin-top:10px;letter-spacing:1px;
   }
+  .rotate-hint{
+    display:none;
+    text-align:center;font-size:12px;color:var(--red-bright);
+    letter-spacing:2px;margin-bottom:12px;
+    font-family:'Special Elite',monospace;
+  }
+  .rotate-hint span{ display:inline-block; animation:rock 1.6s ease-in-out infinite; }
+  @keyframes rock{0%,100%{transform:rotate(0deg);}50%{transform:rotate(90deg);}}
+  @media (max-width:768px) and (orientation:portrait){
+    .rotate-hint{ display:block; }
+  }
 
   /* ---------- filed under (links) ---------- */
   .drawers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:30px;}
@@ -651,6 +662,7 @@
       <h2>The Castle Game</h2>
     </div>
 
+    <p class="rotate-hint rise"><span>&#x1F4F1;</span> Rotate your phone for the best experience</p>
     <div class="game-frame rise">
       <iframe src="the-castle.html" title="$KAFKA — The Castle" loading="lazy"
               allow="autoplay" scrolling="no"></iframe>
