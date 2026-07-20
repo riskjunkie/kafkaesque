@@ -150,6 +150,15 @@
     transition:opacity 1.2s ease;
   }
   .splash-glow.lit{ opacity:1; }
+  .splash-sound{
+    position:absolute;bottom:24px;left:0;right:0;z-index:1;
+    text-align:center;
+    font-family:'Special Elite',monospace;
+    font-size:11px;letter-spacing:3px;text-transform:uppercase;
+    color:rgba(176,154,110,0.7);
+    animation:pulse-sound 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-sound{0%,100%{opacity:.4;}50%{opacity:1;}}
   @media (max-width:768px) and (orientation:portrait){
     .splash-wrap{
       position:absolute;
@@ -439,6 +448,7 @@
 <body style="overflow:hidden;">
 
 <div class="splash" id="splash">
+  <div class="splash-sound">&#x1F50A; Sound on for the full experience</div>
   <div class="splash-wrap">
     <img src="Web Imagery/enter.png" alt="The Summons" draggable="false">
     <img class="splash-glow" id="splash-glow" src="Web Imagery/enter2.png" alt="" draggable="false">
