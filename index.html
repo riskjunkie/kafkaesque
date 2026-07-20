@@ -487,6 +487,18 @@
     #castle .floor-head{margin-bottom:16px;}
     .game-frame iframe{aspect-ratio:auto;height:80vh;}
   }
+  @media (orientation:landscape) and (max-height:500px){
+    #castle{padding:0;min-height:auto;}
+    #castle .floor-head,
+    .game-note{display:none;}
+    .game-frame{margin-left:0;width:100%;}
+    .game-frame iframe{
+      width:100%;
+      height:100vh;
+      aspect-ratio:unset;
+    }
+    .game-overlay{display:none;}
+  }
   @media (max-width:400px){
     .directory{grid-template-columns:1fr;}
     .door-art{height:150px;}
