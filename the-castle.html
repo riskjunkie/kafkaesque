@@ -245,6 +245,39 @@
   .name-entry input:focus{outline:none;border-color:var(--red-bright);}
   .name-saved{color:#c9a24a;font-size:12px;letter-spacing:1.5px;margin:8px 0 16px;min-height:16px;text-transform:uppercase;}
 
+  /* wallet link */
+  .wallet-section{
+    width:100%;max-width:380px;
+    margin:10px 0 14px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  .wallet-label{
+    font-size:11px;color:var(--grey);letter-spacing:1.5px;text-transform:uppercase;
+  }
+  .wallet-row{display:flex;gap:6px;align-items:center;justify-content:center;width:100%;}
+  .wallet-row input{
+    font-family:'Courier Prime',monospace;font-size:12px;letter-spacing:0;
+    background:rgba(0,0,0,0.45);border:2px solid rgba(232,226,208,0.4);color:var(--paper);
+    padding:9px 10px;flex:1;min-width:0;border-radius:4px;
+  }
+  .wallet-row input::placeholder{color:var(--grey);font-size:11px;letter-spacing:0;}
+  .wallet-row input:focus{outline:none;border-color:var(--red-bright);}
+  .wallet-row button{padding:9px 14px;font-size:11px;}
+  .wallet-status{
+    font-size:11px;letter-spacing:1px;text-transform:uppercase;min-height:16px;
+    transition:color .2s;
+  }
+  .wallet-status.verified{color:#68ce8a;}
+  .wallet-status.error{color:var(--red-bright);}
+  .wallet-status.checking{color:var(--grey);}
+  .holder-badge{
+    display:inline-block;
+    border:1px solid #68ce8a;color:#68ce8a;
+    font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+    padding:3px 10px;border-radius:3px;margin:4px 0;
+  }
+  .holder-badge.none{border-color:var(--red-bright);color:var(--red-bright);}
+
   /* hide the in-play HUD + controls on any menu/overlay screen */
   #stage:not(.playing) .hud,
   #stage:not(.playing) .dpad,
@@ -405,6 +438,14 @@
       <p class="instructions" style="margin-bottom:18px;">
         You have 3 HP (●●●, top of screen). Lose them all and the system wins. Watch for bonus perks like loopholes, tips, appeals and refunds.
       </p>
+      <div class="wallet-section">
+        <div class="wallet-label">Link wallet to compete for weekly prize</div>
+        <div class="wallet-row">
+          <input id="wallet-input" placeholder="Solana wallet address" autocomplete="off" spellcheck="false">
+          <button id="btn-wallet" class="secondary">Link</button>
+        </div>
+        <div class="wallet-status" id="wallet-status"></div>
+      </div>
       <div class="start-btn-row">
         <button id="btn-start">Start Game</button>
         <button id="btn-guide" class="secondary">Item Guide</button>
@@ -446,6 +487,7 @@
         <div class="distance-col">Paces Filed<b id="final-distance">0</b></div>
         <div class="distance-col">Furthest on Record<b id="final-best">0</b></div>
       </div>
+      <div id="holder-badge-go" class="holder-badge" style="display:none;"></div>
       <div class="name-entry" id="name-entry">
         <div class="name-prompt">File your name for the records</div>
         <div class="name-row">
@@ -473,7 +515,8 @@
 
   function resize(){
     var rect = stage.getBoundingClientRect();
-    var dpr = window.devicePixelRatio || 1;
+    var rawDpr = window.devicePixelRatio || 1;
+    var dpr = Math.min(rawDpr, 2);
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
     scale = (rect.width / LOGICAL_W) * dpr;
@@ -1177,6 +1220,99 @@
   var lbRange = 'daily';
   var lastGameScore = 0, scoreSubmitted = false, lastSubmitted = null, lbFrom = 'start-screen';
 
+  // ---- wallet verification: only $KAFKA holders can submit scores ----
+  var WALLET_KEY = 'kafka_castle_wallet';
+  var HOLDER_KEY = 'kafka_castle_holder';
+  var KAFKA_MINT = '';  // set after token launch
+  var walletAddr = localStorage.getItem(WALLET_KEY) || '';
+  var isHolder = localStorage.getItem(HOLDER_KEY) === '1';
+
+  function isValidSolanaAddr(addr){
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+  }
+
+  function checkTokenBalance(addr){
+    if(!KAFKA_MINT){
+      isHolder = true;
+      localStorage.setItem(HOLDER_KEY, '1');
+      return Promise.resolve(true);
+    }
+    var body = JSON.stringify({
+      jsonrpc:'2.0', id:1, method:'getTokenAccountsByOwner',
+      params:[addr, {mint:KAFKA_MINT}, {encoding:'jsonParsed'}]
+    });
+    return fetch('https://api.mainnet-beta.solana.com', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:body
+    }).then(function(r){ return r.json(); }).then(function(data){
+      var accounts = (data.result && data.result.value) || [];
+      var holds = accounts.some(function(a){
+        var info = a.account && a.account.data && a.account.data.parsed && a.account.data.parsed.info;
+        if(!info) return false;
+        var amt = info.tokenAmount;
+        return amt && parseFloat(amt.uiAmountString || '0') > 0;
+      });
+      isHolder = holds;
+      localStorage.setItem(HOLDER_KEY, holds ? '1' : '0');
+      return holds;
+    }).catch(function(){ return false; });
+  }
+
+  function initWalletUI(){
+    var inp = document.getElementById('wallet-input');
+    var btn = document.getElementById('btn-wallet');
+    var status = document.getElementById('wallet-status');
+    if(walletAddr){
+      inp.value = walletAddr;
+      if(isHolder){
+        status.textContent = 'Holder verified';
+        status.className = 'wallet-status verified';
+        inp.disabled = true;
+        btn.textContent = 'Unlink';
+      } else {
+        status.textContent = 'No $KAFKA found — play for fun';
+        status.className = 'wallet-status error';
+      }
+    }
+    btn.addEventListener('click', function(){
+      if(inp.disabled){
+        inp.disabled = false;
+        inp.value = '';
+        walletAddr = '';
+        isHolder = false;
+        localStorage.removeItem(WALLET_KEY);
+        localStorage.removeItem(HOLDER_KEY);
+        btn.textContent = 'Link';
+        status.textContent = '';
+        status.className = 'wallet-status';
+        return;
+      }
+      var addr = (inp.value || '').trim();
+      if(!isValidSolanaAddr(addr)){
+        status.textContent = 'Invalid Solana address';
+        status.className = 'wallet-status error';
+        return;
+      }
+      btn.disabled = true;
+      status.textContent = 'Checking...';
+      status.className = 'wallet-status checking';
+      walletAddr = addr;
+      localStorage.setItem(WALLET_KEY, addr);
+      checkTokenBalance(addr).then(function(holds){
+        btn.disabled = false;
+        if(holds){
+          status.textContent = 'Holder verified';
+          status.className = 'wallet-status verified';
+          inp.disabled = true;
+          btn.textContent = 'Unlink';
+        } else {
+          status.textContent = 'No $KAFKA found — play for fun';
+          status.className = 'wallet-status error';
+        }
+      });
+    });
+  }
+  initWalletUI();
+
   // Period boundaries in LOCAL time, via Date arithmetic rather than
   // subtracting 86400000, so DST shifts can't slide the day boundary.
   function startOfDay(ts){ var d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
@@ -1221,7 +1357,7 @@
 
   function submitScore(name, sc){
     var list = lbLoad();
-    var entry = { name:name, score:sc, ts:Date.now() };
+    var entry = { name:name, score:sc, ts:Date.now(), wallet:walletAddr||null };
     list.push(entry);
     var ranked = list.slice().sort(byScore);
     var rank = ranked.indexOf(entry) + 1;   // all-time rank
@@ -1708,7 +1844,21 @@
     var ne = document.getElementById('name-entry');
     var ni = document.getElementById('name-input');
     var btnSub = document.getElementById('btn-submit-score');
-    if(d > 0){
+    var badge = document.getElementById('holder-badge-go');
+    if(isHolder && walletAddr){
+      badge.textContent = '$KAFKA Holder';
+      badge.className = 'holder-badge';
+      badge.style.display = '';
+    } else if(walletAddr){
+      badge.textContent = 'Not a holder — score won\'t be filed';
+      badge.className = 'holder-badge none';
+      badge.style.display = '';
+    } else {
+      badge.textContent = 'Link wallet to file scores';
+      badge.className = 'holder-badge none';
+      badge.style.display = '';
+    }
+    if(d > 0 && isHolder && walletAddr){
       ne.style.display = '';
       ni.value = localStorage.getItem(LB_NAME_KEY) || '';
       ni.disabled = false;
@@ -1931,7 +2081,7 @@
       // Slice uniformly in SCREEN space (not depth) so every band is the same
       // few px tall — under the exponential mapping uniform depth steps would
       // make the near bands enormous and visibly chunky.
-      var ROWS = 46, REPEATS_PER_D = 4;
+      var ROWS = 28, REPEATS_PER_D = 4;
       for(var i=0;i<ROWS;i++){
         var offA = ROAD_TOP_OFF + (ROAD_SPAN-ROAD_TOP_OFF)*(i/ROWS);
         var offB = ROAD_TOP_OFF + (ROAD_SPAN-ROAD_TOP_OFF)*((i+1)/ROWS);
@@ -2269,9 +2419,7 @@
       // the painted art reads low-contrast against the busy road at small
       // sizes — brighten/punch it up so what an obstacle actually IS is
       // legible at a glance, not just "a dark shape incoming"
-      ctx.filter = 'brightness(1.32) contrast(1.12) saturate(1.15)';
       drawIconSprite(sprite, meta, meta.width === 'span' ? spanWidth : meta.width);
-      ctx.filter = 'none';
       ctx.restore();
       return;
     }
