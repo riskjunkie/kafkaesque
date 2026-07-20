@@ -1,0 +1,226 @@
+{
+ "characters": {
+  "roachRunA": {
+   "w": 1024,
+   "h": 1536,
+   "bbox": {
+    "minX": 28,
+    "maxX": 995,
+    "minY": 244,
+    "maxY": 1209
+   }
+  },
+  "roachRunB": {
+   "w": 1024,
+   "h": 1536,
+   "bbox": {
+    "minX": 20,
+    "maxX": 995,
+    "minY": 246,
+    "maxY": 1270
+   }
+  },
+  "roachJump": {
+   "w": 1024,
+   "h": 1536,
+   "bbox": {
+    "minX": 97,
+    "maxX": 978,
+    "minY": 227,
+    "maxY": 920
+   }
+  },
+  "roachDuck": {
+   "w": 1024,
+   "h": 1536,
+   "bbox": {
+    "minX": 95,
+    "maxX": 972,
+    "minY": 641,
+    "maxY": 979
+   }
+  },
+  "roachFlyA": {
+   "w": 1024,
+   "h": 1536,
+   "bbox": {
+    "minX": 28,
+    "maxX": 995,
+    "minY": 253,
+    "maxY": 1145
+   }
+  },
+  "roachFlyB": {
+   "w": 1024,
+   "h": 1536,
+   "bbox": {
+    "minX": 45,
+    "maxX": 973,
+    "minY": 319,
+    "maxY": 1182
+   }
+  },
+  "roachHitA": {
+   "w": 1254,
+   "h": 1254,
+   "bbox": {
+    "minX": 138,
+    "maxX": 1152,
+    "minY": 182,
+    "maxY": 1099
+   }
+  },
+  "roachHitB": {
+   "w": 1254,
+   "h": 1254,
+   "bbox": {
+    "minX": 147,
+    "maxX": 1089,
+    "minY": 130,
+    "maxY": 1117
+   }
+  },
+  "roachSplat": {
+   "w": 1254,
+   "h": 1254,
+   "bbox": {
+    "minX": 126,
+    "maxX": 1126,
+    "minY": 99,
+    "maxY": 1127
+   }
+  }
+ },
+ "icons": {
+  "cabinet": {
+   "w": 291,
+   "h": 339,
+   "bbox": {
+    "minX": 5,
+    "maxX": 286,
+    "minY": 5,
+    "maxY": 334
+   }
+  },
+  "stack": {
+   "w": 303,
+   "h": 288,
+   "bbox": {
+    "minX": 5,
+    "maxX": 298,
+    "minY": 5,
+    "maxY": 283
+   }
+  },
+  "stamp": {
+   "w": 245,
+   "h": 348,
+   "bbox": {
+    "minX": 5,
+    "maxX": 240,
+    "minY": 5,
+    "maxY": 343
+   }
+  },
+  "deskSlow": {
+   "w": 372,
+   "h": 276,
+   "bbox": {
+    "minX": 5,
+    "maxX": 367,
+    "minY": 5,
+    "maxY": 271
+   }
+  },
+  "redtape": {
+   "w": 332,
+   "h": 230,
+   "bbox": {
+    "minX": 5,
+    "maxX": 327,
+    "minY": 5,
+    "maxY": 225
+   }
+  },
+  "server": {
+   "w": 318,
+   "h": 229,
+   "bbox": {
+    "minX": 5,
+    "maxX": 313,
+    "minY": 5,
+    "maxY": 224
+   }
+  },
+  "auditor": {
+   "w": 215,
+   "h": 302,
+   "bbox": {
+    "minX": 5,
+    "maxX": 210,
+    "minY": 5,
+    "maxY": 297
+   }
+  },
+  "barricade": {
+   "w": 370,
+   "h": 235,
+   "bbox": {
+    "minX": 5,
+    "maxX": 365,
+    "minY": 5,
+    "maxY": 230
+   }
+  },
+  "subpoena": {
+   "w": 355,
+   "h": 333,
+   "bbox": {
+    "minX": 5,
+    "maxX": 350,
+    "minY": 5,
+    "maxY": 328
+   }
+  },
+  "loophole": {
+   "w": 263,
+   "h": 279,
+   "bbox": {
+    "minX": 5,
+    "maxX": 258,
+    "minY": 5,
+    "maxY": 274
+   }
+  },
+  "tip": {
+   "w": 310,
+   "h": 221,
+   "bbox": {
+    "minX": 5,
+    "maxX": 305,
+    "minY": 5,
+    "maxY": 216
+   }
+  },
+  "appeal": {
+   "w": 187,
+   "h": 321,
+   "bbox": {
+    "minX": 5,
+    "maxX": 182,
+    "minY": 5,
+    "maxY": 316
+   }
+  },
+  "refund": {
+   "w": 333,
+   "h": 227,
+   "bbox": {
+    "minX": 5,
+    "maxX": 328,
+    "minY": 5,
+    "maxY": 222
+   }
+  }
+ }
+}

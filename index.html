@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$KAFKA — The Office of Endless Procedure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0b0a08;
+    --ink-2:#141210;
+    --paper:#d9c9a4;
+    --paper-hi:#f0e5c8;
+    --sepia:#b09a6e;
+    --sepia-2:#8d7a55;
+    --red:#8c1a1a;
+    --red-bright:#c62828;
+    --green:#68ce8a;
+    --shell:96px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;padding:0;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Courier Prime',monospace;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none;}
+  img{max-width:100%;display:block;}
+
+  /* ---------- shared type ---------- */
+  .type{font-family:'Special Elite',monospace;}
+  .eyebrow{
+    font-family:'Special Elite',monospace;
+    font-size:11px;letter-spacing:5px;text-transform:uppercase;
+    color:var(--red-bright);
+  }
+  h1,h2,h3{font-family:'Special Elite',monospace;font-weight:400;margin:0;}
+  p{line-height:1.85;}
+
+  /* ---------- plates ----------
+     panels.jpg was originally sliced live with background-position at even
+     fifths, but the source grid has paper gutters of uneven width, so every
+     crop dragged in a slice of its neighbour's ink border — and forcing the
+     portrait cells into a landscape box stretched them. The 15 plates are now
+     cut to their measured bounds as real files (see Web Imagery/plates/) and
+     drawn with `cover`, which crops to fill without distorting. */
+  .plate{
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+  }
+
+  /* ---------- the building ----------
+     Each section keeps a FIXED backdrop with content travelling over it, so
+     scrolling reads as walking deeper into the building rather than sliding a
+     page. The backdrop also creeps/zooms slightly (see JS parallax). */
+  .floor{
+    position:relative;
+    min-height:100vh;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:120px 24px;
+    overflow:hidden;
+  }
+  .floor-bg{
+    position:absolute;inset:-8%;
+    background-size:cover;background-position:center;
+    background-repeat:no-repeat;   /* required once any rule sizes by width */
+    background-color:var(--ink);
+    will-change:transform;
+    z-index:0;
+  }
+  .floor-veil{
+    position:absolute;inset:0;z-index:1;
+    background:
+      radial-gradient(ellipse at 50% 45%, rgba(11,10,8,0.35) 0%, rgba(11,10,8,0.88) 72%, rgba(11,10,8,0.98) 100%);
+  }
+  .floor-inner{position:relative;z-index:2;width:100%;max-width:1080px;margin:0 auto;}
+
+  /* ---------- entrance ---------- */
+  #entrance{padding:0;min-height:100vh;justify-content:flex-start;}
+  #entrance .floor-bg{
+    background-image:url('Web Imagery/bg1.png');
+    background-position:center 40%;
+  }
+  #entrance .floor-veil{
+    background:
+      radial-gradient(ellipse at 50% 42%, rgba(11,10,8,0.05) 0%, rgba(11,10,8,0.72) 62%, rgba(11,10,8,0.97) 100%);
+  }
+  .entrance-inner{
+    position:relative;z-index:2;
+    min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:90px 24px 60px;
+    text-align:center;
+  }
+  .brandmark{
+    font-family:'Special Elite',monospace;
+    font-size:clamp(48px,11vw,120px);
+    letter-spacing:6px;
+    color:var(--paper-hi);
+    text-shadow:0 0 60px rgba(0,0,0,0.9), 0 6px 0 rgba(0,0,0,0.5);
+    line-height:1;
+  }
+  .brandsub{
+    font-family:'Special Elite',monospace;
+    font-size:clamp(11px,2.4vw,15px);
+    letter-spacing:8px;text-transform:uppercase;
+    color:var(--red-bright);
+    margin-top:14px;
+  }
+  .brandline{
+    max-width:560px;margin:26px auto 0;
+    font-size:13px;line-height:1.9;color:var(--sepia-2);
+    color:#a08f6d;
+  }
+  .scroll-cue{
+    margin-top:44px;
+    font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#7d6f52;
+    animation:bob 2.6s ease-in-out infinite;
+  }
+  @keyframes bob{0%,100%{transform:translateY(0);opacity:.55;}50%{transform:translateY(7px);opacity:1;}}
+
+  /* ---------- splash gate ---------- */
+  .splash{
+    position:fixed;inset:0;z-index:9999;
+    background:#0b0a08;
+    cursor:pointer;
+    transition:opacity 0.8s ease;
+    overflow:hidden;
+  }
+  .splash.leaving{ opacity:0; pointer-events:none; }
+  .splash-wrap{
+    position:absolute;inset:0;
+  }
+  .splash-wrap img{
+    width:100%;height:100%;
+    object-fit:cover;
+    display:block;
+    user-select:none;-webkit-user-drag:none;
+  }
+  .splash-glow{
+    position:absolute;inset:0;
+    opacity:0;
+    transition:opacity 1.2s ease;
+  }
+  .splash-glow.lit{ opacity:1; }
+
+  /* ---------- the directory (doors) ---------- */
+  .directory{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+    width:100%;max-width:980px;margin:52px auto 0;
+  }
+  .door{
+    position:relative;
+    border:1px solid rgba(217,201,164,0.22);
+    background:var(--ink-2);
+    overflow:hidden;
+    text-align:left;
+    transition:transform .35s cubic-bezier(.2,.8,.3,1), border-color .35s, box-shadow .35s;
+  }
+  .door:hover{
+    transform:translateY(-8px);
+    border-color:var(--red-bright);
+    box-shadow:0 18px 44px rgba(0,0,0,0.7), 0 0 0 1px rgba(198,40,40,0.35);
+  }
+  .door-art{
+    height:190px;
+    filter:sepia(0.35) contrast(1.05) brightness(0.62);
+    transition:filter .35s, transform .6s cubic-bezier(.2,.8,.3,1);
+  }
+  .door:hover .door-art{filter:sepia(0.15) contrast(1.15) brightness(0.95);transform:scale(1.06);}
+  .door-label{padding:14px 16px 18px;border-top:1px solid rgba(217,201,164,0.14);}
+  .door-no{font-size:10px;letter-spacing:3px;color:var(--red-bright);font-family:'Special Elite',monospace;}
+  .door-name{font-family:'Special Elite',monospace;font-size:16px;color:var(--paper-hi);margin-top:6px;letter-spacing:1px;}
+  .door-desc{font-size:11px;color:#8a7c5f;margin-top:6px;line-height:1.6;}
+
+  /* ---------- documents ---------- */
+  .doc{
+    /* was hugging the left edge — a block element with only a max-width
+       fills available width up to that cap and anchors at the start, it
+       needs an explicit auto margin to actually center within .floor-inner */
+    margin-left:auto;
+    margin-right:auto;
+    position:relative;
+    background-image:url('Web Imagery/paper.jpg');
+    background-size:cover;background-position:center;
+    color:#2b2114;
+    padding:38px 40px 34px;
+    box-shadow:0 22px 60px rgba(0,0,0,0.75);
+    border:1px solid rgba(0,0,0,0.35);
+  }
+  .doc-pull{
+    font-family:'Special Elite',monospace;
+    font-size:clamp(16px,2.6vw,21px);
+    line-height:1.5;
+    color:var(--red);
+    text-align:center;
+    margin:26px 0;
+    padding:16px 8px;
+    border-top:1px solid rgba(60,40,15,0.28);
+    border-bottom:1px solid rgba(60,40,15,0.28);
+  }
+  .doc::after{
+    /* keeps the page edges from looking like a clean rectangle of stock */
+    content:'';position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 70px rgba(60,40,15,0.55);
+  }
+  .doc h2{font-size:clamp(22px,4vw,34px);letter-spacing:1px;color:#241b10;}
+  .doc p{font-size:14px;color:#3a2d1c;}
+  .doc .eyebrow{color:var(--red);}
+  .doc-meta{
+    display:flex;gap:22px;flex-wrap:wrap;
+    border-top:1px solid rgba(60,40,15,0.28);
+    margin-top:26px;padding-top:14px;
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#6b573a;
+  }
+
+  /* rubber stamp */
+  .stamp{
+    display:inline-block;
+    border:3px double var(--red);
+    color:var(--red);
+    font-family:'Special Elite',monospace;
+    font-size:13px;letter-spacing:3px;text-transform:uppercase;
+    padding:8px 16px;
+    transform:rotate(-7deg);
+    opacity:.82;
+  }
+  .stamp.tilt-r{transform:rotate(5deg);}
+
+  /* ---------- proceedings (roadmap) ---------- */
+  .phases{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:34px;}
+  .phase{
+    border:1px solid rgba(217,201,164,0.18);
+    background:rgba(12,11,9,0.72);
+    padding:0 0 20px;
+    transition:border-color .35s, transform .35s;
+  }
+  .phase:hover{border-color:rgba(198,40,40,0.5);transform:translateY(-5px);}
+  .phase-art{height:150px;filter:sepia(0.3) brightness(0.7) contrast(1.05);}
+  .phase-body{padding:16px 18px 0;}
+  .phase-no{font-size:10px;letter-spacing:3px;color:var(--red-bright);font-family:'Special Elite',monospace;}
+  .phase-name{font-family:'Special Elite',monospace;font-size:18px;color:var(--paper-hi);margin:7px 0 9px;}
+  .phase-text{font-size:12px;line-height:1.75;color:#93856a;}
+  .phase-status{
+    display:inline-block;margin-top:12px;
+    font-size:9px;letter-spacing:2px;text-transform:uppercase;
+    border:1px solid currentColor;padding:3px 8px;
+  }
+  .st-open{color:var(--green);}
+  .st-pending{color:#c9a24a;}
+  .st-sealed{color:#7d6f52;}
+
+  /* ---------- the castle (game) ---------- */
+  /* This floor gets its own tighter padding instead of the shared 120px —
+     the game needs to be visible start-to-finish (heading, iframe, AND the
+     D-pad at its bottom) inside one screen. With the generic .floor padding
+     the section ran to ~1000px tall on an 820px viewport, so you had to
+     scroll down to see the controls, then back up to read the heading —
+     the "scroll up and down" the game itself never needed. */
+  #castle{padding:40px 24px 16px;}
+  #castle .floor-bg{background-image:url('Web Imagery/bg4.png');}
+  #castle .floor-head{margin-bottom:14px;}
+  .game-frame{
+    position:relative;
+    width:100%;max-width:960px;margin:0 auto;
+    display:flex;justify-content:center;
+    border:1px solid rgba(217,201,164,0.25);
+    background:#000;
+    box-shadow:0 30px 80px rgba(0,0,0,0.85);
+  }
+  .game-frame iframe{
+    display:block;border:0;
+    aspect-ratio:900/506;
+    height:min(506px, calc(100vh - 140px));
+    width:auto;
+    max-width:100%;
+  }
+  .game-note{
+    text-align:center;font-size:11px;color:#8a7c5f;margin-top:10px;letter-spacing:1px;
+  }
+
+  /* ---------- filed under (links) ---------- */
+  .drawers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:30px;}
+  .drawer{
+    display:flex;align-items:center;gap:14px;
+    border:1px solid rgba(217,201,164,0.2);
+    background:linear-gradient(180deg, rgba(30,26,20,0.9), rgba(14,12,10,0.95));
+    padding:16px 18px;
+    transition:transform .3s cubic-bezier(.2,.8,.3,1), border-color .3s, background .3s;
+  }
+  .drawer:hover{transform:translateX(9px);border-color:var(--red-bright);background:linear-gradient(180deg, rgba(44,32,26,0.95), rgba(20,15,12,0.98));}
+  .drawer-pull{
+    width:34px;height:9px;flex:none;border-radius:2px;
+    background:linear-gradient(180deg,#6e6047,#3a3225);
+    box-shadow:0 1px 0 rgba(255,255,255,0.12) inset;
+  }
+  /* spans need to be blocks here or the label and status run together inline */
+  .drawer-txt{flex:1;display:flex;flex-direction:column;gap:3px;}
+  .drawer-name{display:block;font-family:'Special Elite',monospace;font-size:14px;color:var(--paper-hi);letter-spacing:1px;}
+  .drawer-sub{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#7d6f52;}
+  .drawer[data-pending="1"]{opacity:.72;}
+  .drawer[data-pending="1"] .drawer-sub{color:#c9a24a;}
+  /* a drawer that actually goes somewhere reads live, not awaiting-filing */
+  .drawer:not([data-pending]) .drawer-sub{color:var(--green);}
+
+  /* ---------- section heading ---------- */
+  .floor-head{margin-bottom:30px;}
+  .floor-head .eyebrow{display:block;margin-bottom:10px;}
+  .floor-head h2{font-size:clamp(28px,6vw,52px);color:var(--paper-hi);letter-spacing:2px;}
+  .floor-head .sub{font-size:13px;color:#8a7c5f;margin-top:12px;max-width:620px;line-height:1.85;}
+
+  /* ---------- sticky directory bar ---------- */
+  .deptbar{
+    position:fixed;top:0;left:0;right:0;z-index:60;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:12px 22px;
+    background:rgba(8,7,6,0.86);
+    backdrop-filter:blur(9px);
+    border-bottom:1px solid rgba(217,201,164,0.14);
+    transform:translateY(-110%);
+    transition:transform .45s cubic-bezier(.2,.8,.3,1);
+  }
+  .deptbar.show{transform:translateY(0);}
+  .deptbar .mark{font-family:'Special Elite',monospace;letter-spacing:3px;color:var(--paper-hi);font-size:15px;}
+  .deptbar nav{display:flex;gap:20px;flex-wrap:wrap;}
+  .deptbar nav a{
+    font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:#8a7c5f;
+    transition:color .25s;
+  }
+  .deptbar nav a:hover{color:var(--red-bright);}
+
+  /* ---------- ambient site music ---------- */
+  .site-mute{
+    position:fixed;top:16px;right:16px;z-index:70;
+    width:36px;height:36px;
+    border:1px solid rgba(217,201,164,0.35);
+    background:rgba(11,10,8,0.55);
+    backdrop-filter:blur(6px);
+    color:var(--paper);
+    font-size:15px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:4px;
+    cursor:pointer;
+    opacity:.8;
+    transition:opacity .25s, border-color .25s, background .25s;
+  }
+  .site-mute:hover{opacity:1;border-color:var(--red-bright);}
+  .site-mute.is-muted{color:#7d6f52;}
+
+  /* ---------- reveal ---------- */
+  .rise{opacity:0;transform:translateY(26px);transition:opacity .8s ease, transform .8s cubic-bezier(.2,.8,.3,1);}
+  .rise.in{opacity:1;transform:none;}
+
+  /* ---------- footer ---------- */
+  footer{
+    position:relative;z-index:2;
+    text-align:center;padding:60px 24px 70px;
+    border-top:1px solid rgba(217,201,164,0.12);
+    background:#080706;
+  }
+  footer .fine{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5f553f;line-height:2.2;}
+
+  @media (max-width:880px){
+    .directory{grid-template-columns:repeat(2,1fr);}
+    .doc{padding:28px 22px;}
+    .floor{padding:100px 18px;}
+    .deptbar nav{display:none;}
+  }
+  @media (max-width:700px){
+    /* The corridor plate is 2:1, so `cover` on a portrait screen crops to the
+       dark vanishing point and the hero reads empty. Pull the veil back and
+       raise the focal point so the cabinets actually show. */
+    /* Don't use `cover` here: the plate is 2:1, so covering a tall screen
+       crops to ~23% of its width — just the dark far end. Oversize by width
+       instead so a real slice of the cabinet corridor is visible. */
+    #entrance{min-height:auto;}
+    #entrance .floor-bg{background-position:center 45%;}
+    #entrance .floor-veil{
+      background:radial-gradient(ellipse at 50% 34%,
+        rgba(11,10,8,0) 0%, rgba(11,10,8,0.45) 50%, rgba(11,10,8,0.94) 100%);
+    }
+    .entrance-inner{min-height:auto;padding:76px 18px 52px;}
+    .brandmark{font-size:clamp(40px,13.5vw,66px);}
+    .brandline{font-size:12px;margin-top:20px;}
+    .directory{margin-top:34px;gap:12px;}
+    .door-art{height:132px;}
+    .door-label{padding:11px 12px 14px;}
+    .door-desc{display:none;}
+
+    /* On a portrait phone, WIDTH is the scarce dimension, not height — the
+       desktop rule caps the iframe's HEIGHT and lets width follow, which on a
+       narrow screen computes a width far past what's available, gets clamped
+       by max-width, and (since height stays at its explicit px value) leaves
+       the game box shorter than a native-ratio fit — the game then letterboxes
+       inside its own iframe with wasted black bars top and bottom. Flip the
+       binding constraint here: width:100%, height:auto (ratio-derived). Also
+       let the floor hug its now-short content instead of forcing a full
+       100vh, which would otherwise centre a small game in a lot of empty
+       black — same treatment #entrance already gets on mobile. */
+    #castle{min-height:auto;padding:40px 18px 24px;}
+    #castle .floor-head{margin-bottom:16px;}
+    .game-frame iframe{height:auto;width:100%;max-width:100%;}
+  }
+  @media (max-width:400px){
+    .directory{grid-template-columns:1fr;}
+    .door-art{height:150px;}
+    .door-desc{display:block;}
+  }
+</style>
+</head>
+<body style="overflow:hidden;">
+
+<div class="splash" id="splash">
+  <div class="splash-wrap">
+    <img src="Web Imagery/enter.png" alt="The Summons" draggable="false">
+    <img class="splash-glow" id="splash-glow" src="Web Imagery/enter2.png" alt="" draggable="false">
+  </div>
+</div>
+
+<div class="site-mute" id="site-mute" title="Mute">♪</div>
+<audio id="site-music" src="Game Music/menu.mp3" loop preload="auto"></audio>
+
+<div class="deptbar" id="deptbar">
+  <span class="mark">$KAFKA</span>
+  <nav>
+    <a href="#charge">The Charge</a>
+    <a href="#proceedings">Proceedings</a>
+    <a href="#castle">The Castle</a>
+    <a href="#filed">Filed Under</a>
+  </nav>
+</div>
+
+<!-- ============ ENTRANCE ============ -->
+<section class="floor" id="entrance">
+  <div class="floor-bg" data-depth="0.18"></div>
+  <div class="floor-veil"></div>
+  <div class="entrance-inner">
+    <div class="brandmark">$KAFKA</div>
+    <div class="brandsub">The Appeal Starts Here</div>
+    <p class="brandline">Please proceed down the corridor.</p>
+
+    <div class="directory">
+      <a class="door rise" href="#charge">
+        <div class="door-art plate" style="background-image:url('Web Imagery/plates/c3-r2.jpg')"></div>
+        <div class="door-label">
+          <div class="door-no">DEPT. I</div>
+          <div class="door-name">The Charge</div>
+          <div class="door-desc">What you are accused of, and why it will not be explained.</div>
+        </div>
+      </a>
+      <a class="door rise" href="#proceedings">
+        <div class="door-art plate" style="background-image:url('Web Imagery/plates/c2-r1.jpg');background-position:center 22%"></div>
+        <div class="door-label">
+          <div class="door-no">DEPT. II</div>
+          <div class="door-name">Proceedings</div>
+          <div class="door-desc">Four phases. The first honest roadmap in the building.</div>
+        </div>
+      </a>
+      <a class="door rise" href="#castle">
+        <div class="door-art plate" style="background-image:url('Web Imagery/plates/c3-r1.jpg');background-position:center 22%"></div>
+        <div class="door-label">
+          <div class="door-no">DEPT. III</div>
+          <div class="door-name">The Castle</div>
+          <div class="door-desc">Run the corridor yourself. It never gets closer.</div>
+        </div>
+      </a>
+      <a class="door rise" href="#filed">
+        <div class="door-art plate" style="background-image:url('Web Imagery/plates/c5-r2.jpg')"></div>
+        <div class="door-label">
+          <div class="door-no">DEPT. IV</div>
+          <div class="door-name">Filed Under</div>
+          <div class="door-desc">Where the paperwork is kept.</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="scroll-cue">Descend</div>
+  </div>
+</section>
+
+<!-- ============ I — THE CHARGE ============ -->
+<section class="floor" id="charge">
+  <div class="floor-bg" data-depth="0.26" style="background-image:url('Web Imagery/bg2.png');"></div>
+  <div class="floor-veil"></div>
+  <div class="floor-inner">
+    <div class="floor-head rise">
+      <span class="eyebrow">Department I</span>
+      <h2>The Charge</h2>
+    </div>
+
+    <div class="doc rise" style="max-width:760px;">
+      <span class="eyebrow">Statement of the Matter</span>
+      <h2 style="margin-top:10px;">You already know how this goes.</h2>
+      <p>
+        You bought something on a premise you couldn't fully explain, to yourself or
+        anyone else. The chart moved on information you were never issued. Support
+        vanished the exact moment you needed it, and the people who'd set the terms were
+        never named, never elected, and never in the room to answer for it. When you
+        asked what happened, the answer always had the same shape: technically, nothing
+        went wrong. And also, everything did.
+      </p>
+      <p>
+        That feeling has a name older than the industry currently taking credit for it.
+        A century before token launches existed, Kafka described a system that judges
+        you by rules it declines to publish, administered by an authority that never
+        appears in person to explain itself. Swap <i>the court</i> for <i>the whales</i>,
+        <i>the law</i> for <i>the roadmap</i> — the fit stops being a metaphor.
+      </p>
+      <p style="margin-bottom:0;">
+        Most projects either pretend this isn't true, or turn it into the whole joke and
+        stop there. We're doing the less comfortable thing: naming it on the record, and
+        then building past it — with structure, not slogans.
+      </p>
+
+      <div class="doc-pull">
+        We're not promising you'll win. Nobody honest does that. We're promising the game
+        won't be rigged by people you were never allowed to meet.
+      </div>
+
+      <p>
+        That starts with opening the file. Every wallet that matters — dev, marketing,
+        treasury — is public and labeled. Mint authority renounced. Liquidity locked and
+        verifiable on-chain, not promised in a group chat. No pre-sale, no private
+        allocation, no OTC handshake. Maximum wallet caps so no single address holds
+        enough to crater the chart. Anti-snipe protection so bots don't eat the supply
+        before a human being sees the price. The system that judged you in the dark
+        operates in daylight here.
+      </p>
+      <p style="margin-bottom:0;">
+        Then: revenue that isn't printed from nothing. The Castle isn't decoration —
+        competitive runs, tournaments, and collectibles generate real income that flows
+        back through buybacks and burns. The supply shrinks. That's not a promise about
+        price — it's math. What happens next is still on you, same as always.
+      </p>
+
+      <div class="doc-meta">
+        <span>Form 87-B</span>
+        <span>Filed · Undated</span>
+        <span>Reviewing Officer · Unassigned</span>
+      </div>
+      <div style="margin-top:22px;"><span class="stamp">Appeal Filed</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ II — PROCEEDINGS ============ -->
+<section class="floor" id="proceedings">
+  <div class="floor-bg" data-depth="0.22" style="background-image:url('Web Imagery/bg3.png');"></div>
+  <div class="floor-veil"></div>
+  <div class="floor-inner">
+    <div class="floor-head rise">
+      <span class="eyebrow">Department II</span>
+      <h2>Proceedings</h2>
+    </div>
+
+    <div class="phases">
+      <div class="phase rise">
+        <div class="phase-art plate" style="background-image:url('Web Imagery/plates/c3-r3.jpg')"></div>
+        <div class="phase-body">
+          <div class="phase-no">PHASE ONE</div>
+          <div class="phase-name">Before the Law</div>
+          <p class="phase-text">
+            A man waits his whole life at a door built only for him. The gatekeeper
+            never lets him through — in the parable, that was always the point. In this
+            market the door always opens for someone else first. Ours opened at the same
+            time, at the same price, for everyone. No pre-sale. No insiders. The gate is
+            behind us.
+          </p>
+          <span class="phase-status st-sealed">Concluded</span>
+        </div>
+      </div>
+
+      <div class="phase rise">
+        <div class="phase-art plate" style="background-image:url('Web Imagery/plates/c5-r1.jpg')"></div>
+        <div class="phase-body">
+          <div class="phase-no">PHASE TWO</div>
+          <div class="phase-name">The Trial</div>
+          <p class="phase-text">
+            Josef K. is arrested for a crime nobody will name, and spends the whole
+            book trying to get a straight answer from a system built never to give one.
+            You're in that room now — except this time you can read the ledger, name the
+            wallets, and watch every move in real time. Community treasury is live under
+            multisig. Burn receipts are on-chain. The appeal is open — read it yourself.
+          </p>
+          <span class="phase-status st-open">In Session</span>
+        </div>
+      </div>
+
+      <div class="phase rise">
+        <div class="phase-art plate" style="background-image:url('Web Imagery/plates/c3-r1.jpg');background-position:center 22%"></div>
+        <div class="phase-body">
+          <div class="phase-no">PHASE THREE</div>
+          <div class="phase-name">The Castle</div>
+          <p class="phase-text">
+            K. spends an entire novel trying to reach an authority that never answers
+            him. We built that pursuit as a game — the castle never gets closer, because
+            that's how the old system works. Play it, compete on the leaderboard. Unlike
+            the novel, The Castle pays out: competitive runs and events generate revenue
+            that flows back to holders through buybacks and burns.
+          </p>
+          <span class="phase-status st-open">Playable Now</span>
+        </div>
+      </div>
+
+      <div class="phase rise">
+        <div class="phase-art plate" style="background-image:url('Web Imagery/plates/c2-r2.jpg')"></div>
+        <div class="phase-body">
+          <div class="phase-no">PHASE FOUR</div>
+          <div class="phase-name">The Metamorphosis</div>
+          <p class="phase-text">
+            Gregor wakes up changed, and everyone around him adjusts — somehow the most
+            disturbing part of the whole book. This phase is the hand-off: treasury moves
+            from multisig to token-weighted voting through Realms DAO — every holder gets
+            a vote proportional to what they hold, not who they know. Not sealed — scheduled.
+          </p>
+          <span class="phase-status st-pending">Scheduled</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ III — THE CASTLE (GAME) ============ -->
+<section class="floor" id="castle">
+  <div class="floor-bg" data-depth="0.14"></div>
+  <div class="floor-veil"></div>
+  <div class="floor-inner">
+    <div class="floor-head rise">
+      <span class="eyebrow">Department III</span>
+      <h2>The Castle Game</h2>
+    </div>
+
+    <div class="game-frame rise">
+      <iframe src="the-castle.html" title="$KAFKA — The Castle" loading="lazy"
+              allow="autoplay" scrolling="no"></iframe>
+    </div>
+    <p class="game-note rise">
+      Arrow keys or the on-screen controls. Furthest distance is recorded.
+      Nobody has reached The Castle yet.
+    </p>
+  </div>
+</section>
+
+<!-- ============ IV — FILED UNDER ============ -->
+<section class="floor" id="filed">
+  <div class="floor-bg" data-depth="0.24" style="background-image:url('Web Imagery/bg5.png');"></div>
+  <div class="floor-veil"></div>
+  <div class="floor-inner">
+    <div class="floor-head rise">
+      <span class="eyebrow">Department IV</span>
+      <h2>Filed Under</h2>
+    </div>
+
+    <div class="drawers">
+      <a class="drawer rise" href="https://x.com/KafkaesqueSol" target="_blank" rel="noopener noreferrer">
+        <span class="drawer-pull"></span>
+        <span class="drawer-txt">
+          <span class="drawer-name">X / Twitter</span>
+          <span class="drawer-sub">@KafkaesqueSol</span>
+        </span>
+      </a>
+      <a class="drawer rise" data-pending="1" href="#" data-link="telegram">
+        <span class="drawer-pull"></span>
+        <span class="drawer-txt">
+          <span class="drawer-name">Telegram</span>
+          <span class="drawer-sub">Awaiting Filing</span>
+        </span>
+      </a>
+      <a class="drawer rise" data-pending="1" href="#" data-link="chart">
+        <span class="drawer-pull"></span>
+        <span class="drawer-txt">
+          <span class="drawer-name">Chart</span>
+          <span class="drawer-sub">Awaiting Filing</span>
+        </span>
+      </a>
+      <a class="drawer rise" data-pending="1" href="#" data-link="contract">
+        <span class="drawer-pull"></span>
+        <span class="drawer-txt">
+          <span class="drawer-name">Contract</span>
+          <span class="drawer-sub">Awaiting Filing</span>
+        </span>
+      </a>
+    </div>
+
+    <div class="doc rise" style="max-width:640px;margin-top:40px;">
+      <span class="eyebrow">Terms of the Appeal</span>
+      <h2 style="margin-top:10px;font-size:22px;">What we owe you, on the record.</h2>
+      <p style="margin-bottom:0;">
+        Mint authority renounced. Liquidity locked. Every wallet labeled and public. Max
+        wallet caps enforced in the contract. Revenue from The Castle returned through
+        buybacks and burns. Decisions made by holder vote, not by title. These aren't
+        promises in a group chat — they're conditions verifiable on-chain, right now. The
+        file is open. Read it yourself.
+      </p>
+      <div style="margin-top:20px;"><span class="stamp tilt-r">Filed</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="fine">
+    $KAFKA — The Office of Endless Procedure<br>
+    Not financial advice. Not a guarantee. But every claim on this site is verifiable on-chain,<br>
+    which is more than the last ten things you bought can say.
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* ---- reveal on approach ---- */
+  var rises = document.querySelectorAll('.rise');
+  if('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, {rootMargin:'0px 0px -12% 0px', threshold:0.08});
+    rises.forEach(function(el, i){
+      el.style.transitionDelay = ((i % 4) * 90) + 'ms';
+      io.observe(el);
+    });
+  } else {
+    rises.forEach(function(el){ el.classList.add('in'); });
+  }
+
+  /* ---- parallax: backdrops drift slower than the content travelling over
+     them, which is what sells "moving through the building" rather than
+     "scrolling a page". Transform-only so it stays on the compositor. ---- */
+  var bgs = [].slice.call(document.querySelectorAll('.floor-bg'));
+  var bar = document.getElementById('deptbar');
+  var entranceH = function(){ return document.getElementById('entrance').offsetHeight; };
+  var ticking = false;
+
+  function frame(){
+    ticking = false;
+    var vh = window.innerHeight;
+    bgs.forEach(function(bg){
+      var sec = bg.parentElement;
+      var r = sec.getBoundingClientRect();
+      if(r.bottom < -vh || r.top > vh*2) return;      // offscreen, skip
+      var depth = parseFloat(bg.getAttribute('data-depth')) || 0.2;
+      // progress of this section through the viewport, -1 .. 1
+      var prog = (r.top + r.height/2 - vh/2) / vh;
+      var shift = -prog * depth * 100;
+      var zoom = 1 + Math.max(0, 0.05 - Math.abs(prog) * 0.03);
+      bg.style.transform = 'translate3d(0,' + shift.toFixed(2) + 'px,0) scale(' + zoom.toFixed(4) + ')';
+    });
+    if(window.scrollY > entranceH() * 0.6) bar.classList.add('show');
+    else bar.classList.remove('show');
+  }
+  function onScroll(){ if(!ticking){ ticking = true; requestAnimationFrame(frame); } }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', onScroll);
+  frame();
+
+  /* ---- ambient site music ----
+     Same track as the game's own menu screen, playing from the moment you
+     land, so the corridor feels alive before you ever reach the game itself.
+     Two layers of intent here:
+     1. AUTOPLAY, no click required. Browsers only allow audio-with-sound to
+        autoplay under specific conditions (prior engagement with the origin,
+        browser-specific heuristics) — there is no way to GUARANTEE it plays
+        with zero interaction on every browser on a cold first visit; that's
+        a platform policy, not something any site can override. So: attempt
+        play() immediately, and only if the browser actually refuses it, fall
+        back to arming a one-time real-gesture listener (a synthetic dispatch
+        does not satisfy this, only a genuine pointerdown/keydown does) — so
+        the worst case is exactly "starts on first interaction", never worse.
+     2. Never two layers at once. This used to guess "are we near the game"
+        from scroll position (an IntersectionObserver on the Castle section)
+        — but that's a proxy for the real question, which is "has the game's
+        OWN audio actually started", and a scroll-position threshold can't
+        perfectly track that (e.g. clicking Start Game the instant the iframe
+        scrolls into view, before crossing the visibility threshold, briefly
+        overlapped both). Replaced with the real signal: the-castle.html now
+        posts a message the moment ITS OWN audio genuinely starts playing
+        (see playTrack() there). The first time that arrives, this ambient
+        loop stops for good — a one-way handoff for the rest of the session,
+        not a pause/resume — since once you're actually playing the game, the
+        game's own separate mute button is what should be controlling audio
+        from then on. */
+  var music = document.getElementById('site-music');
+  var muteBtn = document.getElementById('site-mute');
+  var MUTE_KEY = 'kafka_muted';
+  var muted = localStorage.getItem(MUTE_KEY) === '1';
+  var handedOff = false;
+  var ICON_SPEAKER = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+  var ICON_MUTED = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+
+  function syncMuteUI(){
+    muteBtn.innerHTML = muted ? ICON_MUTED : ICON_SPEAKER;
+    muteBtn.classList.toggle('is-muted', muted);
+    muteBtn.title = muted ? 'Unmute' : 'Mute';
+  }
+  syncMuteUI();
+  var TARGET_VOL = 0.5;
+  var FADE_MS = 2000;
+  music.muted = muted;
+  music.volume = 0;
+  music.currentTime = 9;
+
+  function fadeIn(){
+    var start = performance.now();
+    function step(now){
+      var t = Math.min((now - start) / FADE_MS, 1);
+      music.volume = TARGET_VOL * t;
+      if(t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  var firstPlay = true;
+  function tryPlay(){
+    if(muted || handedOff) return;
+    if(firstPlay){ music.currentTime = 9; firstPlay = false; }
+    music.volume = 0;
+    music.play().then(fadeIn).catch(function(){});
+  }
+  function tryPause(){
+    if(!music.paused) music.pause();
+  }
+
+  /* ---- splash gate: click → glow → enter → music ---- */
+  var splash = document.getElementById('splash');
+  var splashGlow = document.getElementById('splash-glow');
+  splash.addEventListener('click', function(){
+    if(splash.classList.contains('leaving')) return;
+    splashGlow.classList.add('lit');
+    setTimeout(function(){
+      window.scrollTo(0, 0);
+      splash.classList.add('leaving');
+      document.body.style.overflow = '';
+      tryPlay();
+    }, 1400);
+    setTimeout(function(){
+      splash.remove();
+    }, 2200);
+  }, {once:true});
+
+  muteBtn.addEventListener('click', function(){
+    muted = !muted;
+    localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+    music.muted = muted;
+    syncMuteUI();
+    if(muted) tryPause(); else tryPlay();
+  });
+
+  window.addEventListener('storage', function(e){
+    if(e.key !== MUTE_KEY) return;
+    var newMuted = e.newValue === '1';
+    if(newMuted === muted) return;
+    muted = newMuted;
+    music.muted = muted;
+    syncMuteUI();
+    if(muted) tryPause(); else if(!handedOff) tryPlay();
+  });
+
+  window.addEventListener('message', function(e){
+    if(e.data && e.data.kafkaGameAudioStarted){
+      handedOff = true;
+      tryPause();
+    }
+    if(e.data && e.data.kafkaGameReturnedToMenu){
+      handedOff = false;
+      tryPlay();
+    }
+  });
+
+  /* ---- unfiled drawers: say so plainly rather than 404-ing ---- */
+  document.querySelectorAll('.drawer[data-pending="1"]').forEach(function(d){
+    d.addEventListener('click', function(e){
+      e.preventDefault();
+      var sub = d.querySelector('.drawer-sub');
+      var was = sub.textContent;
+      sub.textContent = 'No Such Department (Yet)';
+      setTimeout(function(){ sub.textContent = was; }, 1600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

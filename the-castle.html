@@ -1,0 +1,2830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>$KAFKA — The Castle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0a0a0a;
+    --paper:#e8e2d0;
+    --red:#8c1a1a;
+    --red-bright:#c62828;
+    --grey:#6b665a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:var(--ink);
+    overflow:hidden;
+    font-family:'Courier Prime',monospace;
+    touch-action:none;
+  }
+  #wrap{
+    position:fixed;inset:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #stage{
+    position:relative;
+    width:100%;height:100%;
+    max-width:900px;max-height:506px;
+    background:var(--ink);
+  }
+  canvas{
+    display:block;width:100%;height:100%;
+    image-rendering:crisp-edges;
+  }
+  .hud{
+    position:absolute;top:14px;left:0;right:0;
+    display:flex;justify-content:space-between;
+    padding:0 18px;
+    color:var(--paper);
+    font-size:14px;
+    letter-spacing:1px;
+    pointer-events:none;
+    opacity:.85;
+    text-transform:uppercase;
+  }
+  .screen{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;
+    /* center when it fits; on short/portrait viewports where the content is
+       taller than the stage, `safe center` falls back to top-align so nothing
+       is clipped and overflow-y can scroll to the rest (older engines ignore
+       the `safe` line and keep plain center) */
+    justify-content:center;
+    justify-content:safe center;
+    text-align:center;
+    color:var(--paper);
+    padding:24px;
+    overflow-y:auto;
+    /* Fixed backdrop, scrolling content — the pattern the future $KAFKA site
+       is built on. The dark gradient keeps text legible over the art. Drop a
+       dedicated menu-bg.png into Game Imagery/ and it takes over; until then
+       the game's own castle-horizon (background1.png) stands in, and a solid
+       ink base covers the case where neither image loads. Background is
+       painted on the element box (attachment:scroll = fixed to the padding
+       box), so it stays put while the content column scrolls over it. */
+    background-color:var(--ink);
+    background-image:
+      linear-gradient(180deg, rgba(8,8,10,0.66), rgba(8,8,10,0.88)),
+      url('Game Imagery/menu-bg.png'),
+      url('Game Imagery/background1.png');
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+  }
+  .screen.hidden{display:none;}
+  .title{
+    font-family:'Special Elite',monospace;
+    font-size:clamp(28px,7vw,46px);
+    color:var(--paper);
+    letter-spacing:3px;
+    margin:0;
+  }
+  .ticker{
+    color:var(--red-bright);
+    font-family:'Special Elite',monospace;
+    font-size:clamp(12px,3vw,15px);
+    letter-spacing:4px;
+    margin:6px 0 26px;
+    text-transform:uppercase;
+  }
+  .stamp{
+    border:2px solid var(--red-bright);
+    color:var(--red-bright);
+    padding:10px 22px;
+    display:inline-block;
+    transform:rotate(-3deg);
+    letter-spacing:2px;
+    font-family:'Special Elite',monospace;
+    font-size:13px;
+    margin-bottom:22px;
+    text-transform:uppercase;
+    opacity:.9;
+  }
+  .instructions{
+    font-size:12px;
+    color:var(--grey);
+    max-width:360px;
+    line-height:1.6;
+    margin-bottom:16px;
+    letter-spacing:.5px;
+  }
+  .instructions b{color:var(--paper);}
+  button{
+    font-family:'Courier Prime',monospace;
+    font-weight:700;
+    background:transparent;
+    border:2px solid var(--paper);
+    color:var(--paper);
+    padding:12px 28px;
+    font-size:14px;
+    letter-spacing:2px;
+    cursor:pointer;
+    text-transform:uppercase;
+    transition:background .15s,color .15s;
+  }
+  button:active{background:var(--paper);color:var(--ink);}
+  .start-btn-row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+  button.secondary{border-color:rgba(232,226,208,0.4);color:var(--grey);font-size:12px;padding:12px 20px;}
+  button.secondary:active{background:rgba(232,226,208,0.4);color:var(--ink);}
+
+  .screen.guide{justify-content:flex-start;padding-top:26px;padding-bottom:18px;}
+  .guide-scroll{
+    width:100%;max-width:520px;flex:1;min-height:0;
+    overflow-y:auto;
+    padding:6px 10px;
+    margin-bottom:14px;
+  }
+  .guide-section-label{
+    font-family:'Special Elite',monospace;
+    color:var(--red-bright);
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;
+    text-align:left;
+    margin:16px 0 8px;
+    border-bottom:1px solid rgba(198,40,40,0.3);
+    padding-bottom:4px;
+  }
+  .guide-section-label:first-child{margin-top:0;}
+  .guide-list{display:flex;flex-direction:column;gap:10px;}
+  .guide-row{
+    display:flex;align-items:center;gap:12px;
+    text-align:left;
+    border:1px solid rgba(232,226,208,0.15);
+    border-radius:4px;
+    padding:8px 10px;
+    background:rgba(232,226,208,0.03);
+  }
+  .guide-icon{
+    width:48px;height:48px;flex:none;
+    object-fit:contain;
+    filter:brightness(1.25) contrast(1.08);
+    background:rgba(0,0,0,0.4);
+    border-radius:3px;
+  }
+  .guide-name{font-family:'Special Elite',monospace;font-size:13px;color:var(--paper);letter-spacing:.5px;}
+  .guide-desc{font-size:11px;color:var(--grey);margin-top:2px;line-height:1.4;}
+  .guide-rarity{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;}
+  .guide-rarity.common{color:#8a8578;}
+  .guide-rarity.uncommon{color:#c9a24a;}
+  .guide-rarity.rare{color:var(--red-bright);}
+
+  .asset-warning{
+    border:1px solid var(--red-bright);
+    background:rgba(198,40,40,0.12);
+    color:var(--paper);
+    font-size:11px;letter-spacing:.5px;line-height:1.6;
+    padding:9px 14px;border-radius:4px;
+    max-width:380px;margin-bottom:16px;
+  }
+  .asset-warning b{color:var(--red-bright);}
+  .asset-warning.hidden{display:none;}
+
+  .how-to-label{
+    font-family:'Special Elite',monospace;
+    color:var(--red-bright);
+    font-size:12px;letter-spacing:3px;text-transform:uppercase;
+    margin:4px 0 8px;
+  }
+  .how-to{
+    font-size:13px;color:var(--paper);letter-spacing:.5px;line-height:1.75;
+    margin:0 0 14px;
+  }
+  .how-to .keycap{
+    display:inline-block;border:1px solid rgba(232,226,208,0.5);border-radius:4px;
+    padding:1px 8px;margin:0 2px;font-size:13px;color:var(--paper);
+    background:rgba(232,226,208,0.06);
+  }
+  .how-to .sub{color:var(--grey);font-size:11px;}
+
+  /* leaderboard */
+  .lb-list{width:100%;max-width:440px;display:flex;flex-direction:column;gap:6px;}
+  .lb-row{
+    display:flex;align-items:center;
+    border:1px solid rgba(232,226,208,0.14);border-radius:4px;
+    padding:9px 14px;background:rgba(232,226,208,0.03);
+    font-size:14px;letter-spacing:1px;
+  }
+  .lb-rank{color:var(--red-bright);font-family:'Special Elite',monospace;width:36px;text-align:left;}
+  .lb-name{flex:1;text-align:left;padding-left:6px;color:var(--paper);font-family:'Special Elite',monospace;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lb-score{color:var(--paper);font-variant-numeric:tabular-nums;padding-left:10px;}
+  .lb-row.you{border-color:var(--red-bright);background:rgba(198,40,40,0.12);}
+  .lb-empty{color:var(--grey);font-size:12px;margin-top:26px;line-height:1.7;max-width:300px;}
+  .lb-empty.hidden{display:none;}
+  .lb-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center;}
+  .lb-tab{
+    font-family:'Courier Prime',monospace;font-weight:700;
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
+    padding:7px 14px;
+    border:1px solid rgba(232,226,208,0.28);border-radius:4px;
+    color:var(--grey);cursor:pointer;
+  }
+  .lb-tab.active{border-color:var(--paper);color:var(--paper);background:rgba(232,226,208,0.08);}
+  .lb-past{
+    display:flex;gap:20px;justify-content:center;flex-wrap:wrap;
+    font-size:11px;letter-spacing:1px;color:var(--grey);
+    text-transform:uppercase;margin:12px 0 14px;min-height:14px;
+  }
+  .lb-past b{color:#c9a24a;font-family:'Special Elite',monospace;font-weight:400;}
+
+  /* game-over score submission */
+  .name-entry{display:flex;flex-direction:column;align-items:center;gap:8px;margin:6px 0 4px;}
+  .name-prompt{font-size:12px;color:var(--grey);letter-spacing:1.5px;text-transform:uppercase;}
+  .name-row{display:flex;gap:8px;align-items:center;justify-content:center;}
+  .name-entry input{
+    font-family:'Special Elite',monospace;text-transform:uppercase;letter-spacing:3px;
+    background:rgba(0,0,0,0.45);border:2px solid rgba(232,226,208,0.4);color:var(--paper);
+    padding:10px 12px;font-size:15px;width:150px;text-align:center;border-radius:4px;
+  }
+  .name-entry input::placeholder{color:var(--grey);letter-spacing:2px;}
+  .name-entry input:focus{outline:none;border-color:var(--red-bright);}
+  .name-saved{color:#c9a24a;font-size:12px;letter-spacing:1.5px;margin:8px 0 16px;min-height:16px;text-transform:uppercase;}
+
+  /* hide the in-play HUD + controls on any menu/overlay screen */
+  #stage:not(.playing) .hud,
+  #stage:not(.playing) .dpad,
+  #stage:not(.playing) .hud-health,
+  #stage:not(.playing) .hud-hit,
+  #stage:not(.playing) .hud-buffs{display:none;}
+
+  .case-no{
+    font-family:'Special Elite',monospace;
+    color:var(--red-bright);
+    font-size:13px;
+    letter-spacing:2px;
+    margin-bottom:14px;
+    text-transform:uppercase;
+  }
+  .verdict{
+    font-family:'Special Elite',monospace;
+    font-size:clamp(20px,5vw,28px);
+    margin:0 0 4px;
+  }
+  .distance-row{
+    display:flex;gap:30px;margin:18px 0 24px;
+  }
+  .distance-col{font-size:11px;letter-spacing:2px;color:var(--grey);text-transform:uppercase;}
+  .distance-col b{display:block;font-size:22px;color:var(--paper);font-family:'Special Elite',monospace;margin-top:4px;}
+
+  .dpad{position:absolute;bottom:18px;display:flex;gap:10px;z-index:5;}
+  .dpad.left{left:16px;}
+  .dpad.right{right:16px;flex-direction:column;}
+  .dbtn{
+    width:56px;height:56px;
+    border:2px solid rgba(232,226,208,0.55);
+    background:rgba(20,18,16,0.45);
+    color:var(--paper);
+    font-size:20px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:6px;
+    -webkit-user-select:none;user-select:none;
+  }
+  .dbtn:active,.dbtn.active{background:rgba(232,226,208,0.85);color:var(--ink);}
+
+  .mute-btn{
+    position:absolute;top:44px;right:14px;z-index:5;
+    width:34px;height:34px;
+    border:1px solid rgba(232,226,208,0.4);
+    background:rgba(20,18,16,0.45);
+    color:var(--paper);
+    font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:4px;
+    opacity:.75;
+    -webkit-user-select:none;user-select:none;
+  }
+  .mute-btn:active{background:rgba(232,226,208,0.85);color:var(--ink);}
+
+  .menu-btn{
+    position:absolute;top:44px;left:14px;z-index:5;
+    width:34px;height:34px;
+    border:1px solid rgba(232,226,208,0.4);
+    background:rgba(20,18,16,0.45);
+    color:var(--paper);
+    font-size:15px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:4px;
+    opacity:.75;
+    -webkit-user-select:none;user-select:none;
+  }
+  .menu-btn:active{background:rgba(232,226,208,0.85);color:var(--ink);}
+  .menu-btn.hidden{display:none;}
+
+  .hud-buffs{
+    position:absolute;top:34px;left:0;right:0;
+    display:flex;justify-content:center;align-items:center;gap:14px;
+    pointer-events:none;
+  }
+  .hud-buffs .buff{
+    display:flex;align-items:center;gap:5px;
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;
+    color:#68ce8a;
+    text-shadow:0 0 8px rgba(104,206,138,0.75), 0 1px 2px rgba(0,0,0,0.9);
+  }
+  .hud-buffs .buff img{
+    width:20px;height:20px;object-fit:contain;
+    filter:drop-shadow(0 0 5px rgba(104,206,138,0.9)) brightness(1.2);
+  }
+  .hud-buffs .buff b{font-weight:400;font-family:'Special Elite',monospace;}
+
+  .hud-health{
+    position:absolute;top:14px;left:0;right:0;
+    text-align:center;
+    color:var(--paper);
+    font-size:15px;
+    letter-spacing:4px;
+    pointer-events:none;
+    opacity:.9;
+  }
+
+  /* bureaucratic damage notice — punches in and drifts up as it fades */
+  .hud-hit{
+    position:absolute;top:29%;left:0;right:0;
+    text-align:center;
+    font-family:'Special Elite',monospace;
+    color:var(--red-bright);
+    font-size:clamp(15px,3.3vw,23px);
+    letter-spacing:5px;
+    text-transform:uppercase;
+    pointer-events:none;
+    opacity:0;
+    text-shadow:0 0 16px rgba(198,40,40,0.9), 0 2px 3px rgba(0,0,0,0.85);
+  }
+  .hud-hit.perk{color:#68ce8a;text-shadow:0 0 16px rgba(104,206,138,0.9), 0 2px 3px rgba(0,0,0,0.85);}
+  .hud-hit.show{animation:hitnotice 1s ease-out forwards;}
+  @keyframes hitnotice{
+    0%{opacity:0;transform:translateY(8px) scale(1.2);}
+    14%{opacity:1;transform:translateY(0) scale(1);}
+    68%{opacity:1;}
+    100%{opacity:0;transform:translateY(-12px) scale(0.99);}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div class="hud">
+      <span id="hud-distance">PACES: 0</span>
+      <span id="hud-best">BEST: 0</span>
+    </div>
+    <div class="mute-btn" id="btn-mute">♪</div>
+    <div class="menu-btn hidden" id="btn-menu">≡</div>
+    <div class="hud-buffs" id="hud-buffs"></div>
+    <div class="hud-health" id="hud-health"></div>
+    <div class="hud-hit" id="hud-hit"></div>
+
+    <div class="dpad left">
+      <div class="dbtn" id="btn-left">◀</div>
+      <div class="dbtn" id="btn-right">▶</div>
+    </div>
+    <div class="dpad right">
+      <div class="dbtn" id="btn-up">▲</div>
+      <div class="dbtn" id="btn-down">▼</div>
+    </div>
+
+    <div id="start-screen" class="screen">
+      <div id="asset-warning" class="asset-warning hidden">
+        Artwork can't load this way. Launch with <b>Start Game.command</b> instead of opening the file directly.
+      </div>
+      <h1 class="title">The Castle</h1>
+      <p class="instructions">
+        You are the applicant. No summons was issued, no clerk will see you, and the corridor to the Castle runs on. So do you.
+      </p>
+      <div class="how-to-label">How to Play</div>
+      <p class="how-to">
+        <span class="keycap">&uarr;</span> jump / fly &nbsp;&nbsp; <span class="keycap">&darr;</span> duck<br>
+        <span class="keycap">&larr;</span> <span class="keycap">&rarr;</span> change lanes<br>
+        <span class="sub">arrow keys or the on-screen controls</span>
+      </p>
+      <p class="instructions" style="margin-bottom:18px;">
+        You have 3 HP (●●●, top of screen). Lose them all and the system wins. Watch for bonus perks like loopholes, tips, appeals and refunds.
+      </p>
+      <div class="start-btn-row">
+        <button id="btn-start">Start Game</button>
+        <button id="btn-guide" class="secondary">Item Guide</button>
+        <button id="btn-leaderboard" class="secondary">Leaderboard</button>
+      </div>
+    </div>
+
+    <div id="guide-screen" class="screen guide hidden">
+      <h2 class="verdict">Item Guide</h2>
+      <div class="guide-scroll">
+        <div class="guide-section-label">Hazards</div>
+        <div class="guide-list" id="guide-hazards"></div>
+        <div class="guide-section-label">Perks</div>
+        <div class="guide-list" id="guide-perks"></div>
+      </div>
+      <button id="btn-guide-back">Back</button>
+    </div>
+
+    <div id="leaderboard-screen" class="screen guide hidden">
+      <h2 class="verdict">Leaderboard</h2>
+      <div class="ticker" style="margin:2px 0 12px;">Furthest on record</div>
+      <div class="lb-tabs">
+        <div class="lb-tab" data-range="daily">Today</div>
+        <div class="lb-tab" data-range="weekly">This Week</div>
+        <div class="lb-tab" data-range="all">All Time</div>
+      </div>
+      <div class="guide-scroll">
+        <div class="lb-list" id="lb-list"></div>
+        <div class="lb-empty hidden" id="lb-empty"></div>
+      </div>
+      <div class="lb-past" id="lb-past"></div>
+      <button id="btn-lb-back">Back</button>
+    </div>
+
+    <div id="gameover-screen" class="screen hidden">
+      <div class="case-no" id="case-no">Case No. 000000</div>
+      <h2 class="verdict">Application Denied</h2>
+      <div class="distance-row">
+        <div class="distance-col">Paces Filed<b id="final-distance">0</b></div>
+        <div class="distance-col">Furthest on Record<b id="final-best">0</b></div>
+      </div>
+      <div class="name-entry" id="name-entry">
+        <div class="name-prompt">File your name for the records</div>
+        <div class="name-row">
+          <input id="name-input" maxlength="12" placeholder="YOUR NAME" autocomplete="off" spellcheck="false">
+          <button id="btn-submit-score" class="secondary">File</button>
+        </div>
+      </div>
+      <div class="name-saved" id="name-saved"></div>
+      <div class="start-btn-row">
+        <button id="btn-retry">File Again</button>
+        <button id="btn-gameover-lb" class="secondary">Leaderboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var stage = document.getElementById('stage');
+
+  var LOGICAL_W = 900, LOGICAL_H = 506;
+  var scale = 1;
+
+  function resize(){
+    var rect = stage.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    scale = (rect.width / LOGICAL_W) * dpr;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---- perspective road: everything converges to HORIZON; the castle
+  // sits exactly there, so it never grows no matter how far you run ----
+  var HORIZON = { x: LOGICAL_W/2, y: 172 };
+  var ROAD_BOTTOM_Y = 468;
+  var ROAD_SPAN = ROAD_BOTTOM_Y - HORIZON.y;   // 296px from vanishing point to road bottom
+  var HALFW_BOTTOM = 300;
+  var LANE_FACTOR = 0.64;
+  // How far below the horizon an obstacle sits the moment it enters (depth 0).
+  // Also sets how compressed the perspective is: smaller = deeper-looking.
+  var Y_SPAWN = 18;
+  var PERSP_K = Math.log(ROAD_SPAN / Y_SPAWN);  // ≈ 2.80, so depth 1 lands exactly on the road bottom
+
+  function projectDepth(depth){
+    var d = Math.max(0, Math.min(1.2, depth));
+    // Distance below the horizon grows EXPONENTIALLY with depth, and both the
+    // road width and the object's scale are strictly PROPORTIONAL to it.
+    //
+    // Why: the eye judges approach speed relative to an object's own apparent
+    // size, not in raw pixels. The previous linear projection moved everything
+    // at a constant px/frame while size grew ~8x, so a near obstacle covered
+    // far fewer of its own body-lengths per second than a distant one — it
+    // visibly DECELERATED all the way in. (Every earlier attempt tuned only
+    // the scale exponent, which could never fix that: with position linear,
+    // perceived speed is constant only if size is constant, i.e. no depth.)
+    //
+    // Here d(yOff)/dd = PERSP_K * yOff and scale ∝ yOff, so
+    //   (screen velocity) / (apparent size) = PERSP_K * ROAD_SPAN = constant.
+    // Apparent speed is therefore mathematically constant for the whole
+    // approach, while the object still looms correctly. Width, scale and
+    // position all derive from the single yOff term, so the road, the lane
+    // lines and every item share one exact perspective.
+    var yOff = Y_SPAWN * Math.exp(PERSP_K * d);
+    var t = yOff / ROAD_SPAN;
+    var y = HORIZON.y + yOff;
+    var halfW = HALFW_BOTTOM * t;
+    return { y: y, halfW: halfW, scale: t };
+  }
+  function laneX(lane, halfW){ return HORIZON.x + lane * halfW * LANE_FACTOR; }
+
+  // ---- art assets: real stills generated offline, swapped in over the
+  // procedural placeholder art. Character images ship on a near-black
+  // background rather than real alpha, so keyOutBackground() samples each
+  // image's own corner color and cuts a soft alpha hole around it (rather
+  // than a flat chroma-key on pure black) so dark shell/leg linework
+  // survives instead of being punched out along with the backdrop.
+  var ASSET_PATHS = {
+    bgHorizon: 'Game Imagery/background1.png',
+    roadTex: 'Game Imagery/background3.png',
+    roachRunA: 'Game Imagery/cockroach1.png',
+    roachRunB: 'Game Imagery/cockroach2.png',
+    roachJump: 'Game Imagery/cockroach3.png',
+    roachDuck: 'Game Imagery/cockroach4.png',
+    roachFlyA: 'Game Imagery/cockroach_fly1.png',
+    roachFlyB: 'Game Imagery/cockroach_fly2.png',
+    // damage-reaction + death art. All three are optional: every draw path
+    // falls back (hit → normal pose, splat → procedural splatter), so the
+    // game is fully playable before these files exist.
+    roachHitA: 'Game Imagery/hit1.png',
+    roachHitB: 'Game Imagery/hit2.png',
+    roachSplat: 'Game Imagery/splat.png',
+    iconSheet: 'Game Imagery/icons.png'
+  };
+  var ASSETS = {};
+  var assetsReady = false;
+  // Set when a canvas read is refused. Every image step here (chroma-key, icon
+  // extraction, road-stripe removal) needs getImageData, which the browser
+  // blocks on a tainted canvas — i.e. whenever this file is opened directly as
+  // file:// instead of over http. The fallbacks are silent by design (never
+  // break on a missing asset), but silence here looks exactly like corrupted
+  // art: black boxes behind every character and glyph squares for every item.
+  // So flag it and say so on screen rather than letting it look broken.
+  var assetsBlocked = false;
+  var _lastIconBlobs = [];
+
+  // reading order the icon sheet was generated in (4+4+5 grid, top-to-bottom
+  // then left-to-right) — must match the order given in the generation prompt
+  var ICON_ORDER = [
+    'cabinet','stack','stamp','deskSlow',
+    'redtape','server','auditor','barricade',
+    'subpoena','loophole','tip','appeal','refund'
+  ];
+
+  // anchor: 'ground' = bbox bottom sits on the road at pr.y (jump-over items);
+  // 'hang' = bbox top hangs at hangY above pr.y (duck-under items); 'float'
+  // = bbox center floats at floatY above pr.y (power-ups). width:'span'
+  // means size to the obstacle's actual lane-span rather than a fixed width.
+  var ICON_META = {
+    cabinet:   { anchor:'ground', width:68 },
+    stack:     { anchor:'ground', width:72 },
+    deskSlow:  { anchor:'ground', width:95 },
+    server:    { anchor:'ground', width:72 },
+    auditor:   { anchor:'ground', width:52 },
+    // heightScale independently compresses vertical size while width still
+    // matches the full lane span — at full aspect ratio these two got tall
+    // enough (to match their wide span) that up close they blotted out
+    // whatever was spawning near the horizon behind them. Anchored at the
+    // ground (barricade) / clearance (redtape) edge either way, so this
+    // only shrinks them upward off that fixed edge, not the edge itself.
+    barricade: { anchor:'ground', width:'span', heightScale:0.55 },
+    // hangY is clearance above the road — the roach stands ~172 tall and
+    // ducks to ~107 (see drawPlayer's TARGET_BBOX_W/duck-squash), so these
+    // sit well clear of a duck but well below a standing roach's head:
+    // unambiguous "you must duck this" from a distance, not a coin-flip
+    // All three duck items now share ONE clearance (-128) so players learn a
+    // single "this is duck height" read instead of three different ones. The
+    // roach ducks to ~107 and stands ~172, so 128 clears a duck by ~21 units
+    // while unambiguously blocking a standing roach. heightScale keeps the
+    // span items from towering — subpoena had none and was the worst offender,
+    // reading as a billboard in the sky rather than a barrier.
+    // MEASURED, not guessed: the roach stands 116.9 units tall and ducks to
+    // 86.2 (see __debug.charBoxes()). A duck item is only readable if it sits
+    // INSIDE that window — hang it above 117 and the roach visibly strolls
+    // under it standing, so nothing on screen says "duck", even though the
+    // collision rule still demands one. Earlier values (135→148) were all
+    // above the head and that mismatch was the whole problem.
+    //
+    // 102 is the midpoint: ~16 units of clearance over a ducked roach, and it
+    // visibly intersects a standing one by ~15.
+    //
+    // It also fixes the side-lane drift. An item at height h renders at the
+    // screen row where the road is (1 - h/ROAD_SPAN) as wide, so an outer lane
+    // (LANE_FACTOR 0.64) only sits over visible road while h <= 296*(1-0.64) =
+    // ~107. At 148 the outer-lane items were landing entirely off the road
+    // silhouette, which is what read as "very off centre".
+    // 102 → 106, paired with a deeper duck crouch (DUCK_DROP 13→18, ducked head
+    // 86.2 → 81.2). That widens the visible gap when ducking from ~16 to ~25
+    // units (+55%) while still overlapping a standing roach by ~11, so it reads
+    // as a real barrier rather than something you could stroll under.
+    // The window is genuinely tight — only (81, 117) exists to work in — so
+    // clearance and "blocks standing" trade directly against each other here.
+    stamp:     { anchor:'hang', width:75, hangY:-106 },
+    redtape:   { anchor:'hang', width:'span', hangY:-106, heightScale:0.55 },
+    subpoena:  { anchor:'hang', width:'span', hangY:-106, heightScale:0.5 },
+    loophole:  { anchor:'float', width:58, floatY:-34 },
+    tip:       { anchor:'float', width:58, floatY:-34 },
+    appeal:    { anchor:'float', width:58, floatY:-34 },
+    refund:    { anchor:'float', width:58, floatY:-34 }
+  };
+
+  // shown in the in-game "Case Files" guide, and used to build each
+  // obstacle's spawn weight (see rarityWeight() below)
+  var ITEM_GUIDE = [
+    { id:'cabinet',   category:'hazard', rarity:'common',   name:'Filing Cabinet',       desc:'Jump it. Standard paperwork.' },
+    { id:'stack',     category:'hazard', rarity:'common',   name:'Rejected Stack',       desc:'Jump it. More of the same.' },
+    { id:'stamp',     category:'hazard', rarity:'common',   name:'Rejection Stamp',      desc:'Duck it. DENIED, in red.' },
+    { id:'deskSlow',  category:'hazard', rarity:'uncommon', name:"The Auditor's Desk",   desc:"Jump it. Slow-moving — but nobody's ever fast." },
+    { id:'redtape',   category:'hazard', rarity:'uncommon', name:'Red Tape',             desc:'Duck it. Spans two lanes.' },
+    { id:'server',    category:'hazard', rarity:'uncommon', name:'Process Server',       desc:"Jump it. Fast — you've been served." },
+    { id:'auditor',   category:'hazard', rarity:'rare',     name:'The Auditor',          desc:'Jump it. Shifts lanes as it closes in.' },
+    { id:'barricade', category:'hazard', rarity:'rare',     name:'Court Order Barricade',desc:'Jump it. Blocks all three lanes.' },
+    { id:'subpoena',  category:'hazard', rarity:'rare',     name:'Subpoena Banner',      desc:'Duck it. Blocks all three lanes.' },
+    { id:'loophole',  category:'perk',   rarity:'perk',     name:'Loophole',             desc:'∞ — brief invincibility. Walk through everything.' },
+    { id:'tip',       category:'perk',   rarity:'perk',     name:'Insider Tip',          desc:'2× — double score for a few seconds.' },
+    { id:'appeal',    category:'perk',   rarity:'perk',     name:'Appeal Filed',         desc:'§ — absorbs your next hit, free.' },
+    { id:'refund',    category:'perk',   rarity:'perk',     name:'The Refund',           desc:'✓ — restores one hit point.' }
+  ];
+
+  function loadImage(src){
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onload = function(){ resolve(img); };
+      img.onerror = function(){ resolve(null); };
+      img.src = src;
+    });
+  }
+
+  // Content bounding boxes for the pre-baked character sprites, generated
+  // once offline by bake_assets.py (which replicates keyOutBackground()
+  // pixel-for-pixel against the raw source art) and pasted in here. Loading
+  // these pre-keyed PNGs directly needs zero canvas reads at runtime, which
+  // is what lets the game render correctly even when this page is opened as
+  // file:// instead of over http — canvas.getImageData() is the thing the
+  // browser actually blocks in that case, not image loading itself.
+  var CHAR_BBOX = {
+    roachRunA:  { minX:28,  maxX:995,  minY:244, maxY:1209 },
+    roachRunB:  { minX:20,  maxX:995,  minY:246, maxY:1270 },
+    roachJump:  { minX:97,  maxX:978,  minY:227, maxY:920  },
+    roachDuck:  { minX:95,  maxX:972,  minY:641, maxY:979  },
+    roachFlyA:  { minX:28,  maxX:995,  minY:253, maxY:1145 },
+    roachFlyB:  { minX:45,  maxX:973,  minY:319, maxY:1182 },
+    roachHitA:  { minX:138, maxX:1152, minY:182, maxY:1099 },
+    roachHitB:  { minX:147, maxX:1089, minY:130, maxY:1117 },
+    roachSplat: { minX:126, maxX:1126, minY:99,  maxY:1127 }
+  };
+
+  // Baked path first (no processing needed — just use the embedded bbox);
+  // falls back to the original raw-image + runtime-keying path only if a
+  // baked file is missing, e.g. new source art was dropped in without
+  // re-running bake_assets.py. That fallback still works over http exactly
+  // as before, and still sets assetsBlocked if it hits file:// itself.
+  function loadCharacter(key, rawPath){
+    return loadImage('Game Imagery/baked/' + key + '.png').then(function(img){
+      if(img) return { canvas: img, bbox: CHAR_BBOX[key] };
+      return loadImage(rawPath).then(keyOutBackground);
+    });
+  }
+  function loadRoadTex(rawPath){
+    return loadImage('Game Imagery/baked/roadTex.png').then(function(img){
+      if(img) return img;
+      return loadImage(rawPath).then(stripRoadLines);
+    });
+  }
+  // Icon bboxes don't need embedding: bake_assets.py always crops with a
+  // fixed 5px pad, so the box is derivable from the loaded image's own
+  // dimensions alone.
+  function loadIcon(name){
+    return loadImage('Game Imagery/baked/icon-' + name + '.png').then(function(img){
+      if(!img) return null;
+      var pad = 5;
+      return { canvas: img, bbox: { minX:pad, maxX:img.naturalWidth-pad, minY:pad, maxY:img.naturalHeight-pad } };
+    });
+  }
+
+  function keyOutBackground(img){
+    if(!img) return null;
+    var off = document.createElement('canvas');
+    off.width = img.naturalWidth; off.height = img.naturalHeight;
+    var octx = off.getContext('2d');
+    octx.drawImage(img,0,0);
+    var data;
+    try { data = octx.getImageData(0,0,off.width,off.height); }
+    catch(e){ assetsBlocked = true; return { canvas: img, bbox: {minX:0,maxX:img.naturalWidth,minY:0,maxY:img.naturalHeight} }; }
+    var d = data.data, w = off.width, h = off.height;
+    function px(x,y){ var i=(y*w+x)*4; return [d[i],d[i+1],d[i+2]]; }
+    var corners = [px(2,2), px(w-3,2), px(2,h-3), px(w-3,h-3)];
+    var bg = [0,0,0];
+    corners.forEach(function(c){ bg[0]+=c[0]/4; bg[1]+=c[1]/4; bg[2]+=c[2]/4; });
+    var inner = 16, outer = 70;
+    var minX=w, maxX=0, minY=h, maxY=0;
+    for(var i=0;i<d.length;i+=4){
+      var dr=d[i]-bg[0], dg=d[i+1]-bg[1], db=d[i+2]-bg[2];
+      var dist = Math.sqrt(dr*dr+dg*dg+db*db);
+      var a = dist<=inner ? 0 : dist>=outer ? 255 : (dist-inner)/(outer-inner)*255;
+      d[i+3] = Math.min(d[i+3], a);
+      if(a>40){
+        var px_ = (i/4) % w, py_ = Math.floor((i/4)/w);
+        if(px_<minX) minX=px_; if(px_>maxX) maxX=px_;
+        if(py_<minY) minY=py_; if(py_>maxY) maxY=py_;
+      }
+    }
+    octx.putImageData(data,0,0);
+    if(maxX<minX){ minX=0; maxX=w; minY=0; maxY=h; }
+    return { canvas: off, bbox: {minX:minX,maxX:maxX,minY:minY,maxY:maxY} };
+  }
+
+  // The road texture has two red lane stripes painted into it, sitting at
+  // ±0.47 of the road half-width. The game draws its own lane dividers at
+  // ±0.32 (derived from LANE_FACTOR), so both sets render at once, in
+  // different places — the single biggest reason the road read as "weird".
+  // Painted-in markings can't be repositioned, so they're erased here at
+  // load: each stripe band is filled by cross-fading a mirror of the clean
+  // asphalt on its left against a mirror of the clean asphalt on its right,
+  // which leaves no seam. The crisp geometric dividers then stand alone and
+  // actually correspond to where the lanes are. (Reads only from outside the
+  // band it writes, so there's no read-after-write smearing.)
+  function stripRoadLines(img){
+    if(!img) return null;
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    var octx = off.getContext('2d');
+    octx.drawImage(img, 0, 0);
+    var data;
+    try { data = octx.getImageData(0,0,w,h); }
+    catch(e){ assetsBlocked = true; return img; }
+    var d = data.data;
+    // measured from the source art (see the redness scan): stripes occupy
+    // x ≈ 0.251–0.278 and 0.724–0.750 of the width; padded slightly
+    [[0.243,0.286],[0.716,0.758]].forEach(function(b){
+      var a = Math.floor(b[0]*w), z = Math.ceil(b[1]*w), span = z-a;
+      if(span <= 0 || a-span < 0 || z+span > w-1) return;
+      for(var y=0;y<h;y++){
+        for(var xi=a; xi<z; xi++){
+          var t = (xi-a)/span;
+          var li = (y*w + (a-1-(xi-a)))*4;
+          var ri = (y*w + (z+(z-xi)))*4;
+          var oi = (y*w + xi)*4;
+          d[oi]   = d[li]  *(1-t) + d[ri]  *t;
+          d[oi+1] = d[li+1]*(1-t) + d[ri+1]*t;
+          d[oi+2] = d[li+2]*(1-t) + d[ri+2]*t;
+        }
+      }
+    });
+    octx.putImageData(data,0,0);
+    return off;
+  }
+
+  // The icon sheet ships as N separate items on one flat-black image rather
+  // than individually cropped files — an AI-generated grid is never quite
+  // evenly spaced, so instead of guessing per-cell pixel rects, this finds
+  // each item's real bounding box via connected-component labeling (flood
+  // fill on non-black pixels), sorts the blobs into reading order, and crops
+  // each one out with its own soft alpha edge. Same "trust the actual
+  // content, not assumed framing" fix as the character bbox-anchoring, just
+  // applied per-icon instead of per-image.
+  function extractIconSheet(img, order){
+    if(!img) return null;
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    var octx = off.getContext('2d');
+    octx.drawImage(img,0,0);
+    var data;
+    try { data = octx.getImageData(0,0,w,h); }
+    catch(e){ assetsBlocked = true; return null; }
+    var d = data.data;
+    var n = w*h;
+    var alpha = new Uint8ClampedArray(n);
+    var solid = new Uint8Array(n);
+    var inner = 14, outer = 60;
+    for(var i=0;i<n;i++){
+      var r=d[i*4], g=d[i*4+1], b=d[i*4+2];
+      var dist = Math.sqrt(r*r+g*g+b*b);
+      var a = dist<=inner ? 0 : dist>=outer ? 255 : (dist-inner)/(outer-inner)*255;
+      alpha[i] = a;
+      solid[i] = a>90 ? 1 : 0;
+    }
+
+    // small pieces of a single icon (chain links, dripping ink, scattered
+    // papers, sparkle particles) are often pixel-disconnected from the main
+    // shape, so plain connected-components over-splits one item into many.
+    // Dilate first to bridge those small internal gaps, label the DILATED
+    // mask, then accumulate each blob's bounding box from the ORIGINAL
+    // (non-dilated) pixels so the box still hugs the real content.
+    function dilate(mask, radius){
+      var tmp = new Uint8Array(n), out = new Uint8Array(n);
+      for(var y=0;y<h;y++){
+        var count=0, rowOff=y*w;
+        for(var x=-radius;x<w;x++){
+          if(x+radius<w && mask[rowOff+x+radius]) count++;
+          if(x-radius-1>=0 && mask[rowOff+x-radius-1]) count--;
+          if(x>=0) tmp[rowOff+x] = count>0?1:0;
+        }
+      }
+      for(var x2=0;x2<w;x2++){
+        var count2=0;
+        for(var y2=-radius;y2<h;y2++){
+          if(y2+radius<h && tmp[(y2+radius)*w+x2]) count2++;
+          if(y2-radius-1>=0 && tmp[(y2-radius-1)*w+x2]) count2--;
+          if(y2>=0) out[y2*w+x2] = count2>0?1:0;
+        }
+      }
+      return out;
+    }
+    var dilateR = parseInt((/[?&]dilate=(\d+)/.exec(location.search)||[])[1], 10) || 8;
+    var dilated = dilate(solid, dilateR);
+
+    var labels = new Int32Array(n);
+    var nextLabel = 1;
+    var stack = [];
+    for(var y0=0;y0<h;y0++){
+      for(var x0=0;x0<w;x0++){
+        var idx0 = y0*w+x0;
+        if(dilated[idx0] && !labels[idx0]){
+          var lbl = nextLabel++;
+          labels[idx0]=lbl; stack.push(idx0);
+          while(stack.length){
+            var idx = stack.pop();
+            var yy = (idx/w)|0, xx = idx-yy*w;
+            if(xx>0 && dilated[idx-1] && !labels[idx-1]){ labels[idx-1]=lbl; stack.push(idx-1); }
+            if(xx<w-1 && dilated[idx+1] && !labels[idx+1]){ labels[idx+1]=lbl; stack.push(idx+1); }
+            if(yy>0 && dilated[idx-w] && !labels[idx-w]){ labels[idx-w]=lbl; stack.push(idx-w); }
+            if(yy<h-1 && dilated[idx+w] && !labels[idx+w]){ labels[idx+w]=lbl; stack.push(idx+w); }
+          }
+        }
+      }
+    }
+
+    var blobAcc = {};
+    for(var i2=0;i2<n;i2++){
+      if(!solid[i2]) continue;
+      var lbl2 = labels[i2];
+      if(!lbl2) continue;
+      var yy2 = (i2/w)|0, xx2 = i2-yy2*w;
+      var acc = blobAcc[lbl2];
+      if(!acc){ acc = {minX:xx2,maxX:xx2,minY:yy2,maxY:yy2,count:0}; blobAcc[lbl2]=acc; }
+      if(xx2<acc.minX)acc.minX=xx2; if(xx2>acc.maxX)acc.maxX=xx2;
+      if(yy2<acc.minY)acc.minY=yy2; if(yy2>acc.maxY)acc.maxY=yy2;
+      acc.count++;
+    }
+    var blobs = [];
+    Object.keys(blobAcc).forEach(function(k){
+      var a = blobAcc[k];
+      if(a.count > 500){
+        blobs.push({minX:a.minX,maxX:a.maxX,minY:a.minY,maxY:a.maxY,cx:(a.minX+a.maxX)/2,cy:(a.minY+a.maxY)/2});
+      }
+    });
+
+    blobs.sort(function(a,b){ return a.cy-b.cy; });
+    var rows = [], curRow = [], lastCy = null;
+    blobs.forEach(function(b){
+      if(lastCy!==null && b.cy-lastCy > h*0.08){ rows.push(curRow); curRow=[]; }
+      curRow.push(b); lastCy=b.cy;
+    });
+    if(curRow.length) rows.push(curRow);
+    var ordered = [];
+    rows.forEach(function(row){
+      row.sort(function(a,b){ return a.cx-b.cx; });
+      ordered = ordered.concat(row);
+    });
+
+    if(ordered.length !== order.length){
+      console.warn('icon sheet: expected '+order.length+' items, found '+ordered.length+' — check icons.png layout');
+    }
+    _lastIconBlobs = ordered.map(function(b){ return {minX:b.minX,maxX:b.maxX,minY:b.minY,maxY:b.maxY,w:b.maxX-b.minX,h:b.maxY-b.minY}; });
+
+    var result = {};
+    ordered.forEach(function(b, i){
+      if(i >= order.length) return;
+      var pad = 5;
+      var sx = Math.max(0,b.minX-pad), sy = Math.max(0,b.minY-pad);
+      var sw = Math.min(w,b.maxX+pad)-sx, sh = Math.min(h,b.maxY+pad)-sy;
+      var cCanvas = document.createElement('canvas');
+      cCanvas.width = sw; cCanvas.height = sh;
+      var cctx = cCanvas.getContext('2d');
+      var sub = octx.getImageData(sx, sy, sw, sh);
+      var sd = sub.data;
+      for(var p=0;p<sw*sh;p++){
+        var gx = sx+(p%sw), gy = sy+((p/sw)|0);
+        sd[p*4+3] = alpha[gy*w+gx];
+      }
+      cctx.putImageData(sub,0,0);
+      result[order[i]] = { canvas: cCanvas, bbox: { minX:pad, maxX:sw-pad, minY:pad, maxY:sh-pad } };
+    });
+    return result;
+  }
+
+  var CHAR_KEYS = ['roachRunA','roachRunB','roachJump','roachDuck','roachFlyA','roachFlyB',
+                   'roachHitA','roachHitB','roachSplat'];
+
+  Promise.all([
+    loadImage(ASSET_PATHS.bgHorizon),
+    loadRoadTex(ASSET_PATHS.roadTex),
+    Promise.all(CHAR_KEYS.map(function(k){ return loadCharacter(k, ASSET_PATHS[k]); })),
+    Promise.all(ICON_ORDER.map(loadIcon))
+  ]).then(function(results){
+    ASSETS.bgHorizon = results[0];
+    ASSETS.roadTex = results[1];
+    CHAR_KEYS.forEach(function(k, i){ ASSETS[k] = results[2][i]; });
+
+    var iconResults = results[3];
+    var iconsComplete = iconResults.every(function(r){ return r; });
+    if(iconsComplete){
+      ASSETS.icons = {};
+      ICON_ORDER.forEach(function(name, i){ ASSETS.icons[name] = iconResults[i]; });
+      return;
+    }
+    // one or more baked icons missing — fall back to the original sheet
+    // extraction (needs the raw sheet + a working canvas read)
+    return loadImage(ASSET_PATHS.iconSheet).then(function(sheet){
+      ASSETS.icons = extractIconSheet(sheet, ICON_ORDER) || {};
+    });
+  }).then(function(){
+    assetsReady = true;
+    if(assetsBlocked){
+      var warn = document.getElementById('asset-warning');
+      if(warn) warn.classList.remove('hidden');
+      console.warn('$KAFKA: canvas image reads were blocked, so character keying and ' +
+        'icon extraction could not run. Open the game over http (Start Game.command), ' +
+        'not by double-clicking the file.');
+    }
+  });
+
+  // ---- music: menu loop, 4 rotating run tracks, 4 rotating game-over
+  // stingers. Browsers block audio-with-sound until a real user gesture, so
+  // playback only starts from unlockAudio() (first pointerdown/keydown) or
+  // from state-change handlers that are themselves inside input handlers.
+  var MUSIC_PATHS = {
+    menu: 'Game Music/menu.mp3',
+    game: ['Game Music/game1.mp3','Game Music/game2.mp3','Game Music/game3.mp3','Game Music/game4.mp3'],
+    gameover: ['Game Music/gameover1.mp3','Game Music/gameover2.mp3','Game Music/gameover3.mp3','Game Music/gameover4.mp3']
+  };
+  var AUDIO = {
+    menu: new Audio(MUSIC_PATHS.menu),
+    game: MUSIC_PATHS.game.map(function(p){ return new Audio(p); }),
+    gameover: MUSIC_PATHS.gameover.map(function(p){ return new Audio(p); }),
+    current: null,
+    lastGameIdx: -1,
+    lastOverIdx: -1,
+    muted: localStorage.getItem('kafka_muted') === '1'
+  };
+  AUDIO.menu.loop = true;
+  AUDIO.game.forEach(function(a){ a.loop = true; });
+  [AUDIO.menu].concat(AUDIO.game, AUDIO.gameover).forEach(function(a){ a.muted = AUDIO.muted; });
+
+  function pickIndex(len, last){
+    if(len<=1) return 0;
+    var i;
+    do { i = Math.floor(Math.random()*len); } while(i===last);
+    return i;
+  }
+  function stopMusic(){
+    if(AUDIO.current){ AUDIO.current.pause(); AUDIO.current.currentTime = 0; }
+    AUDIO.current = null;
+  }
+  function playTrack(a){
+    stopMusic();
+    AUDIO.current = a;
+    a.currentTime = 0;
+    // Tell the parent page (the site, when this runs inside its iframe) that
+    // this game's own audio has genuinely started, so it can stop its OWN
+    // ambient loop for good rather than the two ever overlapping. Harmless
+    // when this file is opened standalone — window.parent is just window,
+    // and nothing is listening for the message in that case.
+    a.play().then(function(){
+      try { window.parent.postMessage({ kafkaGameAudioStarted: true }, '*'); } catch(e){}
+    }).catch(function(){});
+  }
+  function playMenuMusic(){ playTrack(AUDIO.menu); }
+  function playGameMusic(){
+    AUDIO.lastGameIdx = pickIndex(AUDIO.game.length, AUDIO.lastGameIdx);
+    playTrack(AUDIO.game[AUDIO.lastGameIdx]);
+  }
+  function playGameOverMusic(){
+    AUDIO.lastOverIdx = pickIndex(AUDIO.gameover.length, AUDIO.lastOverIdx);
+    playTrack(AUDIO.gameover[AUDIO.lastOverIdx]);
+  }
+  // ---- sound effects. Separate from the music tracks but share the mute
+  // toggle. Each name keeps a small pool of Audio elements so rapid retriggers
+  // (lane changes especially) overlap instead of cutting each other off — a
+  // single element per sound would clip every time you dodge twice quickly.
+  var SFX_SRC = {
+    boing:   ['Game Music/boing.mp3'],
+    dodge:   ['Game Music/dodge.mp3'],
+    duck:    ['Game Music/duck.mp3'],
+    powerup: ['Game Music/powerup.mp3'],
+    splat:   ['Game Music/splat.mp3'],
+    crash:   ['Game Music/crash1.mp3','Game Music/crash2.mp3','Game Music/crash3.mp3']
+  };
+  // duck at the ceiling — 1.0 is the max HTML5 Audio allows. If it still reads
+  // quiet the source mp3 is simply low and needs re-exporting louder (or a
+  // WebAudio GainNode, which is the only way to push past 1.0).
+  var SFX_VOL = { boing:0.5, dodge:0.4, duck:1.0, powerup:0.6, splat:0.75, crash:0.6 };
+  var SFX = {};
+  Object.keys(SFX_SRC).forEach(function(k){
+    var pool = [];
+    SFX_SRC[k].forEach(function(src){
+      for(var i=0;i<2;i++){
+        var a = new Audio(src);
+        a.volume = SFX_VOL[k] || 0.5;
+        a.preload = 'auto';
+        pool.push(a);
+      }
+    });
+    // crash has 3 variants — pick at random so repeated hits don't sound canned
+    SFX[k] = { pool: pool, idx: 0, random: SFX_SRC[k].length > 1 };
+  });
+  // sustained flight tone: loops for as long as you hold the climb rather
+  // than firing once, since flight itself is hold-based and open-ended
+  var SFX_FLY = new Audio('Game Music/flying.mp3');
+  SFX_FLY.loop = true;
+  SFX_FLY.volume = 0.32;
+
+  function allSfxNodes(){
+    var out = [SFX_FLY];
+    Object.keys(SFX).forEach(function(k){ out = out.concat(SFX[k].pool); });
+    return out;
+  }
+  function playSfx(name){
+    if(AUDIO.muted) return;
+    var s = SFX[name];
+    if(!s || !s.pool.length) return;
+    var a = s.random
+      ? s.pool[Math.floor(Math.random()*s.pool.length)]
+      : s.pool[(s.idx++) % s.pool.length];
+    try { a.currentTime = 0; a.play().catch(function(){}); } catch(e){}
+  }
+  function startFlySfx(){
+    if(AUDIO.muted || !SFX_FLY.paused) return;
+    try { SFX_FLY.currentTime = 0; SFX_FLY.play().catch(function(){}); } catch(e){}
+  }
+  function stopFlySfx(){
+    if(!SFX_FLY.paused){ SFX_FLY.pause(); try { SFX_FLY.currentTime = 0; } catch(e){} }
+  }
+
+  var ICON_SPEAKER = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>';
+  var ICON_MUTED = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+  function setMuted(m){
+    AUDIO.muted = m;
+    localStorage.setItem('kafka_muted', m ? '1' : '0');
+    [AUDIO.menu].concat(AUDIO.game, AUDIO.gameover).forEach(function(a){ a.muted = m; });
+    allSfxNodes().forEach(function(a){ a.muted = m; });
+    if(m) stopFlySfx();
+    document.getElementById('btn-mute').innerHTML = m ? ICON_MUTED : ICON_SPEAKER;
+  }
+  setMuted(AUDIO.muted);
+
+  var audioUnlocked = false;
+  function unlockAudio(){
+    if(audioUnlocked) return;
+    audioUnlocked = true;
+  }
+  window.addEventListener('pointerdown', unlockAudio, {once:true});
+  window.addEventListener('keydown', unlockAudio, {once:true});
+
+  // Chosen so the roach sits at the same screen row it always has (y≈447)
+  // under the exponential projection: 18*e^(2.80*0.9736) ≈ 275px below the
+  // horizon. Recompute this if Y_SPAWN/ROAD_SPAN ever change.
+  var PLAYER_DEPTH = 0.9736;
+  var GRAVITY = 1500;
+  var FLY_ASCEND_SPEED = 420;
+  var FLY_MAX_HEIGHT = 210;
+  var DIST_K = 30;
+  var HP_MAX = 3;
+  var HIT_MERCY_T = 0.9; // brief invuln after any hit so one hazard can't chain-drain HP
+  // beat of frozen, silent splat before the verdict screen + sting land
+  var DEATH_HOLD_T = 1.6;
+
+  // ---- difficulty is a pure function of elapsed play time (not distance —
+  // distance is a downstream effect of speed, so driving speed off distance
+  // was circular and hard to reason about). Both curves are asymptotic
+  // exp-decay toward a ceiling: they keep climbing for as long as you
+  // survive, never truly plateau ("harder and harder, goes on and on"), but
+  // never exceed a real (if distant) ceiling either, so it stays humanly
+  // survivable rather than becoming literally impossible. Tuned so a run is
+  // easy to carry to ~1 minute and hard to carry to 3-4 minutes.
+  // Speed band is deliberately NARROW now (0.55 → 1.05, ~1.9× over a whole
+  // run) rather than the old 0.42 → 2.3 (5.5×). A wide band meant an
+  // obstacle late in a run genuinely closed ~5× faster than one early on,
+  // which — even though each is internally constant — reads across the run
+  // as "the speed keeps changing." Difficulty now comes mostly from spawn
+  // DENSITY (gap 0.9→0.28s, ~3×) and obstacle-type complexity, so the run
+  // still ramps hard without the apparent-speed swing.
+  // Ceilings unchanged — the run doesn't end up harder, it GETS there sooner.
+  // Both time constants pulled in hard (90→55, 75→45), so e.g. at 30s speed is
+  // 0.76 instead of 0.69 and the spawn gap 0.60s instead of 0.70s.
+  var DEPTH_SPEED_BASE = 0.55;
+  var DEPTH_SPEED_CEIL = 1.05;
+  var SPEED_TIME_CONST = 55;
+  var GAP_START = 0.9;
+  var GAP_FLOOR = 0.28;
+  var GAP_TIME_CONST = 45;
+
+  function currentDepthSpeed(t){
+    return DEPTH_SPEED_CEIL - (DEPTH_SPEED_CEIL-DEPTH_SPEED_BASE)*Math.exp(-t/SPEED_TIME_CONST);
+  }
+  function currentSpawnGap(t){
+    return GAP_FLOOR + (GAP_START-GAP_FLOOR)*Math.exp(-t/GAP_TIME_CONST);
+  }
+
+  // ---- obstacle roster. Each unlocks at an elapsed-time threshold so the
+  // run starts simple (single-lane jump/duck only) and complexity phases in
+  // over the first couple of minutes — the "harder and harder" feel comes
+  // from type variety as much as raw speed. laneMode: 'single' | 'double' |
+  // 'triple' | 'moving' (single lane that shifts once mid-approach, forcing
+  // a reactive dodge).
+  // rarity (and its weight) is the single source of truth in ITEM_GUIDE so
+  // the "Case Files" menu never drifts out of sync with actual spawn odds
+  var RARITY_WEIGHTS = { common:5, uncommon:2.5, rare:1.2 };
+  function rarityOf(id){ return ITEM_GUIDE.filter(function(g){ return g.id===id; })[0].rarity; }
+
+  var OBSTACLE_DEFS = [
+    // speedMult stays close to 1.0 across the board so no two obstacles
+    // read as "different speeds." deskSlow/server keep a mild ±12% tint for
+    // character (their Case Files flavor) without being jarring.
+    { id:'cabinet',   category:'ground', laneMode:'single', speedMult:1.0,  minTime:0 },
+    { id:'stack',     category:'ground', laneMode:'single', speedMult:1.0,  minTime:0 },
+    { id:'stamp',     category:'air',    laneMode:'single', speedMult:1.0,  minTime:0 },
+    // unlocks pulled in ~30% so the full roster is live inside ~40s rather
+    // than ~55s — variety is as much of the difficulty as raw speed is
+    { id:'deskSlow',  category:'ground', laneMode:'single', speedMult:0.88, minTime:3 },
+    { id:'redtape',   category:'air',    laneMode:'double', speedMult:1.0,  minTime:8 },
+    { id:'server',    category:'ground', laneMode:'single', speedMult:1.12, minTime:14 },
+    { id:'auditor',   category:'ground', laneMode:'moving', speedMult:1.0,  minTime:22 },
+    { id:'barricade', category:'ground', laneMode:'triple', speedMult:1.0,  minTime:30 },
+    { id:'subpoena',  category:'air',    laneMode:'triple', speedMult:1.0,  minTime:40 }
+  ].map(function(d){ d.weight = RARITY_WEIGHTS[rarityOf(d.id)]; return d; });
+  var POWERUP_DEFS = [
+    { id:'loophole', duration:5, type:'buff' },
+    { id:'tip',      duration:6, type:'buff' },
+    { id:'appeal',   duration:0, type:'shield' },
+    { id:'refund',   duration:0, type:'heal' }
+  ];
+
+  var state = 'start';
+  var distance = 0;
+  var score = 0;
+  var best = parseInt(localStorage.getItem('kafka_castle3d_best') || '0', 10);
+  document.getElementById('hud-best').textContent = 'BEST: ' + best;
+
+  // ---- leaderboard. Local top-N on this device for now; a global board is a
+  // backend/infra decision (deferred — see brief). Everything above the
+  // data layer is storage-agnostic: to go global, replace fetchScores() and
+  // submitScore() with calls to a backend (e.g. a serverless function +
+  // small DB) and the whole UI keeps working unchanged. Entries are stamped
+  // with a unique ts so the just-submitted run can be highlighted in the list.
+  var LB_KEY = 'kafka_castle3d_leaderboard';
+  var LB_NAME_KEY = 'kafka_castle3d_name';
+  var LB_MAX = 10;      // rows shown on a board
+  // Runs retained. The board used to save only the top 10, which would make
+  // day/week windows impossible — today's best is often nowhere near an
+  // all-time top 10, so the history has to be kept.
+  var LB_KEEP = 400;
+  var lbRange = 'daily';
+  var lastGameScore = 0, scoreSubmitted = false, lastSubmitted = null, lbFrom = 'start-screen';
+
+  // Period boundaries in LOCAL time, via Date arithmetic rather than
+  // subtracting 86400000, so DST shifts can't slide the day boundary.
+  function startOfDay(ts){ var d = new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+  function addDays(ts, n){ var d = new Date(ts); d.setDate(d.getDate()+n); return d.getTime(); }
+  function startOfWeek(ts){                    // weeks run Monday → Sunday
+    var d = new Date(startOfDay(ts));
+    return addDays(d.getTime(), -((d.getDay()+6)%7));
+  }
+  function rangeWindow(range, now){
+    if(range === 'daily')  return [startOfDay(now), Infinity];
+    if(range === 'weekly') return [startOfWeek(now), Infinity];
+    return [-Infinity, Infinity];
+  }
+
+  function lbLoad(){
+    try {
+      var v = JSON.parse(localStorage.getItem(LB_KEY) || '[]');
+      return (v||[]).filter(function(e){ return e && typeof e.score === 'number' && e.ts; });
+    } catch(e){ return []; }
+  }
+  function byScore(a,b){ return b.score-a.score || a.ts-b.ts; }
+
+  function fetchScores(range){
+    var w = rangeWindow(range || lbRange, Date.now());
+    var list = lbLoad().filter(function(e){ return e.ts >= w[0] && e.ts < w[1]; }).sort(byScore);
+    return Promise.resolve(list.slice(0, LB_MAX));
+  }
+
+  // single best run inside a CLOSED window — drives the "yesterday / last week"
+  // lines, which are what give a daily board something to beat
+  function bestIn(from, to){
+    var list = lbLoad().filter(function(e){ return e.ts >= from && e.ts < to; }).sort(byScore);
+    return list.length ? list[0] : null;
+  }
+  function pastBests(){
+    var now = Date.now(), today = startOfDay(now), thisWeek = startOfWeek(now);
+    return {
+      yesterday: bestIn(addDays(today, -1), today),
+      lastWeek:  bestIn(addDays(thisWeek, -7), thisWeek)
+    };
+  }
+
+  function submitScore(name, sc){
+    var list = lbLoad();
+    var entry = { name:name, score:sc, ts:Date.now() };
+    list.push(entry);
+    var ranked = list.slice().sort(byScore);
+    var rank = ranked.indexOf(entry) + 1;   // all-time rank
+    if(list.length > LB_KEEP){
+      // keep the newest LB_KEEP runs, but never evict an all-time top 10
+      var keep = {};
+      ranked.slice(0, LB_MAX).forEach(function(e){ keep[e.ts] = 1; });
+      var out = [];
+      list.slice().sort(function(a,b){ return b.ts-a.ts; }).forEach(function(e){
+        if(out.length < LB_KEEP || keep[e.ts]) out.push(e);
+      });
+      list = out;
+    }
+    localStorage.setItem(LB_KEY, JSON.stringify(list));
+    return Promise.resolve({ rank:rank, entry:entry });
+  }
+
+  var player = {
+    lane: 0, displayLane: 0,
+    height: 0, vy: 0, grounded: true,
+    ducking: false, thrusting: false, runPhase: 0, flyPhase: 0,
+    invincibleT: 0, scoreMultT: 0, shield: 0,
+    hp: HP_MAX, hitInvulnT: 0
+  };
+  updateHealthHud();
+
+  var obstacles = [];
+  var powerups = [];
+  var spawnTimer = 0;
+  var powerupTimer = 0;
+  var flashT = 0;
+  var perkFlashT = 0;   // green counterpart to flashT, fired on a pickup
+  var dyingT = 0;
+  var depthSpeed = DEPTH_SPEED_BASE;
+  var elapsed = 0; // ms, real time (for idle sway etc, keeps running in all states)
+  var elapsedSec = 0; // seconds, only advances while playing
+  var worldScroll = 0; // depth-units the camera has actually travelled — the
+  // proper time-integral of depthSpeed. Road/rung scroll MUST use this, not
+  // elapsedSec*depthSpeed: that product is (total time × current speed), so
+  // whenever the ramp climbs it retroactively re-scales all past travel and
+  // the ground skates ~25%+ faster than obstacles close in (measured). An
+  // accumulator advances by exactly depthSpeed*dt each frame, so the ground
+  // moves at precisely the camera speed and obstacles never slide on it.
+  var sway = 0;
+
+  function reset(){
+    distance = 0;
+    score = 0;
+    depthSpeed = DEPTH_SPEED_BASE;
+    obstacles = [];
+    powerups = [];
+    spawnTimer = 1.0;
+    powerupTimer = 12 + Math.random()*6;
+    flashT = 0;
+    perkFlashT = 0;
+    _buffSig = null;
+    dyingT = 0;
+    elapsedSec = 0;
+    worldScroll = 0;
+    player.lane = 0;
+    player.displayLane = 0;
+    player.height = 0;
+    player.vy = 0;
+    player.grounded = true;
+    player.ducking = false;
+    player.thrusting = false;
+    player.invincibleT = 0;
+    player.scoreMultT = 0;
+    player.shield = 0;
+    player.hp = HP_MAX;
+    player.hitInvulnT = 0;
+    stopFlySfx();
+    clearHitNotice();
+    updateHealthHud();
+  }
+
+  function pickObstacleDef(){
+    var pool = OBSTACLE_DEFS.filter(function(d){ return elapsedSec >= d.minTime; });
+    var total = pool.reduce(function(s,d){ return s+d.weight; }, 0);
+    var r = Math.random()*total;
+    for(var i=0;i<pool.length;i++){ r -= pool[i].weight; if(r<=0) return pool[i]; }
+    return pool[pool.length-1];
+  }
+
+  function laneSetFor(mode){
+    if(mode === 'triple') return [-1,0,1];
+    if(mode === 'double') return Math.random()<0.5 ? [-1,0] : [0,1];
+    return [Math.floor(Math.random()*3)-1];
+  }
+
+  var _debugSpawnLog = [];
+  function spawnObstacle(){
+    var def = pickObstacleDef();
+    if(window.__debug) _debugSpawnLog.push(def.id + '@' + Math.round(elapsedSec) + 's/d' + Math.round(distance));
+    var lanes = laneSetFor(def.laneMode);
+    var obj = {
+      depth: 0,
+      lanes: lanes,
+      type: def.category,
+      kind: def.id,
+      // locked in at spawn — an obstacle's own closing speed never changes
+      // again for its whole flight, even though the global difficulty
+      // curve keeps climbing for obstacles spawned after it. Without this,
+      // every obstacle already in flight silently sped up mid-approach as
+      // the session ramped, which read as a single item accelerating.
+      speed: currentDepthSpeed(elapsedSec) * def.speedMult,
+      resolved: false
+    };
+    if(def.laneMode === 'moving'){
+      obj.moving = true;
+      obj.fromLane = lanes[0];
+      var others = [-1,0,1].filter(function(l){ return l!==obj.fromLane; });
+      obj.toLane = others[Math.floor(Math.random()*others.length)];
+      obj.switchStart = 0.28 + Math.random()*0.12;
+      obj.switchEnd = obj.switchStart + 0.14;
+    }
+    obstacles.push(obj);
+    return def;
+  }
+
+  function laneValueFor(o){
+    if(!o.moving) return (o.lanes[0]+o.lanes[o.lanes.length-1])/2;
+    if(o.depth <= o.switchStart) return o.fromLane;
+    if(o.depth >= o.switchEnd) return o.toLane;
+    var t = (o.depth-o.switchStart)/(o.switchEnd-o.switchStart);
+    return o.fromLane + (o.toLane-o.fromLane)*t;
+  }
+
+  var _debugPowerupLog = [];
+  function spawnPowerup(){
+    // skip the heal pickup entirely when at full HP — no point offering it
+    var pool = POWERUP_DEFS.filter(function(d){ return d.type !== 'heal' || player.hp < HP_MAX; });
+    var def = pool[Math.floor(Math.random()*pool.length)];
+    if(window.__debug) _debugPowerupLog.push(def.id + '@' + Math.round(elapsedSec) + 's');
+    var busyLanes = obstacles.filter(function(o){ return o.depth < 0.55; })
+      .reduce(function(acc,o){ return acc.concat(o.moving ? [o.toLane] : o.lanes); }, []);
+    var free = [-1,0,1].filter(function(l){ return busyLanes.indexOf(l)===-1; });
+    var lane = free.length ? free[Math.floor(Math.random()*free.length)] : Math.floor(Math.random()*3)-1;
+    powerups.push({ depth:0, lane:lane, id:def.id, duration:def.duration, taken:false, speed:currentDepthSpeed(elapsedSec) });
+  }
+
+  function applyPowerup(id, duration){
+    if(id==='loophole'){ player.invincibleT = duration; }
+    else if(id==='tip'){ player.scoreMultT = duration; }
+    else if(id==='appeal'){ player.shield = (player.shield||0) + 1; }
+    else if(id==='refund'){ player.hp = Math.min(HP_MAX, player.hp + 1); updateHealthHud(); }
+  }
+
+  // deadpan bureaucratic damage notices — the file grows, you don't
+  var HIT_NOTICES = ['Infraction','Demerit Noted','Citation Issued',
+                     'Noted in Your File','Strike Recorded','Objection Overruled'];
+  function showHitNotice(text){
+    var el = document.getElementById('hud-hit');
+    el.textContent = text || HIT_NOTICES[Math.floor(Math.random()*HIT_NOTICES.length)];
+    el.classList.remove('show');
+    void el.offsetWidth; // force reflow so the animation restarts on a repeat hit
+    el.classList.add('show');
+  }
+  function clearHitNotice(){
+    var el = document.getElementById('hud-hit');
+    el.classList.remove('show', 'perk');
+    el.textContent = '';
+  }
+
+  // Picking a perk up used to be almost silent visually — just a HUD line
+  // ticking somewhere. Same punch-in notice as damage, but green, so a good
+  // event is as loud as a bad one.
+  var PERK_NAMES = {
+    loophole: 'Loophole Found',
+    tip:      'Insider Tip',
+    appeal:   'Appeal Filed',
+    refund:   'Refund Issued'
+  };
+  function showPerkNotice(id){
+    var el = document.getElementById('hud-hit');
+    el.textContent = PERK_NAMES[id] || 'Perk Granted';
+    el.classList.remove('show');
+    el.classList.add('perk');
+    void el.offsetWidth;
+    el.classList.add('show');
+  }
+
+  // Active perks show their actual ICON, not just a text label — the symbol is
+  // what makes "I currently have something" legible at a glance mid-run.
+  // Icons are rasterised once (toDataURL is expensive) and the row is only
+  // rebuilt when the SET of active perks changes; the countdowns are patched
+  // in place, since this runs every frame.
+  var _perkIconURL = {};
+  // sprite.canvas is a plain <img> for baked icons (loaded straight from a
+  // file, so it already has a usable .src) but a real <canvas> in the
+  // sheet-extraction fallback path (built at runtime via putImageData, so it
+  // only has pixels — toDataURL() is the only way to get a usable src) —
+  // handle both.
+  function spriteImageSrc(sprite){
+    var el = sprite.canvas;
+    return el.tagName === 'CANVAS' ? el.toDataURL() : el.src;
+  }
+  function perkIconURL(id){
+    if(_perkIconURL[id] !== undefined) return _perkIconURL[id];
+    var sprite = ASSETS.icons && ASSETS.icons[id];
+    _perkIconURL[id] = sprite ? spriteImageSrc(sprite) : null;
+    return _perkIconURL[id];
+  }
+  var _buffSig = null, _buffTimeEls = {};
+  function updateBuffHud(){
+    var active = [];
+    if(player.invincibleT > 0) active.push(['loophole', player.invincibleT.toFixed(1)+'s']);
+    if(player.scoreMultT > 0)  active.push(['tip', '2× ' + player.scoreMultT.toFixed(1)+'s']);
+    if(player.shield > 0)      active.push(['appeal', '×' + player.shield]);
+    var sig = active.map(function(a){ return a[0]; }).join('|');
+    var el = document.getElementById('hud-buffs');
+    if(sig !== _buffSig){
+      _buffSig = sig;
+      _buffTimeEls = {};
+      el.innerHTML = '';
+      active.forEach(function(a){
+        var wrap = document.createElement('span');
+        wrap.className = 'buff';
+        var url = perkIconURL(a[0]);
+        if(url){
+          var img = document.createElement('img');
+          img.src = url;
+          wrap.appendChild(img);
+        }
+        var t = document.createElement('b');
+        t.textContent = a[1];
+        wrap.appendChild(t);
+        el.appendChild(wrap);
+        _buffTimeEls[a[0]] = t;
+      });
+      return;
+    }
+    active.forEach(function(a){
+      var t = _buffTimeEls[a[0]];
+      if(t && t.textContent !== a[1]) t.textContent = a[1];
+    });
+  }
+
+  function updateHealthHud(){
+    var filled = '';
+    for(var i=0;i<HP_MAX;i++){ filled += i < player.hp ? '●' : '○'; }
+    document.getElementById('hud-health').textContent = filled;
+  }
+
+  function update(dtMs){
+    elapsed += dtMs;
+    sway += dtMs*0.001;
+    var dt = Math.min(0.034, dtMs/1000);
+
+    // death hold: the world is frozen (nothing advances, no score accrues) so
+    // the splat reads as a hard stop, then the verdict screen + sting land
+    if(state === 'dying'){
+      dyingT -= dt;
+      if(flashT > 0) flashT = Math.max(0, flashT - dt);
+      if(dyingT <= 0) gameOver();
+      return;
+    }
+
+    if(state !== 'playing'){
+      player.runPhase += dt*4;
+      return;
+    }
+    elapsedSec += dt;
+
+    // asymptotic difficulty, driven by elapsed time: keeps climbing toward
+    // the ceiling forever, never hard-plateaus, but never quite reaches it
+    // either — "doable indefinitely" comes from the ceiling being a real
+    // (if distant) limit, not from difficulty ever actually stopping.
+    // depthSpeed here only drives ambient stuff (road scroll, player run
+    // cycle) — individual obstacles lock in their own speed at spawn, see
+    // spawnObstacle().
+    depthSpeed = currentDepthSpeed(elapsedSec);
+    worldScroll += depthSpeed * dt;
+
+    distance += depthSpeed * dt * DIST_K;
+    var mult = player.scoreMultT > 0 ? 2 : 1;
+    score += depthSpeed * dt * DIST_K * mult;
+    document.getElementById('hud-distance').textContent = 'PACES: ' + Math.floor(score);
+
+    if(player.invincibleT > 0) player.invincibleT = Math.max(0, player.invincibleT - dt);
+    if(player.scoreMultT > 0) player.scoreMultT = Math.max(0, player.scoreMultT - dt);
+    if(player.hitInvulnT > 0) player.hitInvulnT = Math.max(0, player.hitInvulnT - dt);
+    if(flashT > 0) flashT = Math.max(0, flashT - dt);
+    if(perkFlashT > 0) perkFlashT = Math.max(0, perkFlashT - dt);
+
+    updateBuffHud();
+
+    player.displayLane += (player.lane - player.displayLane) * Math.min(1, dt*10);
+
+    if(player.thrusting && !player.ducking){
+      // sustained flight: climbs at a fixed rate for as long as held, capped
+      // at a max height rather than the old fixed-duration jump arc — once
+      // released, ordinary gravity takes over from wherever it let go
+      if(player.height < FLY_MAX_HEIGHT){
+        player.vy = FLY_ASCEND_SPEED;
+        player.height = Math.min(FLY_MAX_HEIGHT, player.height + player.vy*dt);
+      } else {
+        player.vy = 0;
+      }
+      player.grounded = false;
+      player.flyPhase += dt * 9;
+    } else {
+      player.vy -= GRAVITY * dt;
+      player.height += player.vy * dt;
+      if(player.height <= 0){
+        player.height = 0;
+        player.vy = 0;
+        player.grounded = true;
+      } else {
+        player.grounded = false;
+      }
+      if(!player.grounded) player.flyPhase += dt * 9;
+    }
+    player.runPhase += dt * (4 + depthSpeed*2);
+
+    spawnTimer -= dt;
+    if(spawnTimer <= 0){
+      var sp = spawnObstacle();
+      spawnTimer = currentSpawnGap(elapsedSec) + Math.random()*0.25;
+      // an all-lane wall (jump the whole road, or duck the whole road) leaves
+      // no lane to sidestep into, so guarantee recovery room before the next
+      // hazard — otherwise back-to-back opposite walls can feel unfair
+      if(sp && sp.laneMode === 'triple') spawnTimer += 0.4;
+      else if(sp && sp.laneMode === 'double') spawnTimer += 0.2;
+    }
+
+    powerupTimer -= dt;
+    if(powerupTimer <= 0){
+      spawnPowerup();
+      powerupTimer = 14 + Math.random()*8;
+    }
+
+    for(var i=obstacles.length-1; i>=0; i--){
+      var o = obstacles[i];
+      var oPrevDepth = o.depth;
+      o.depth += o.speed * dt;
+      if(o.depth > 1.2){ obstacles.splice(i,1); continue; }
+      // resolve on the exact frame depth crosses the player, not "sometime
+      // within a window" — a window could dwell open across several frames
+      // at high speed, so the exact instant it fired could visibly land
+      // anywhere within it rather than lining up with the roach on screen
+      if(!o.resolved && oPrevDepth < PLAYER_DEPTH && o.depth >= PLAYER_DEPTH){
+        var lanesNow = o.moving ? [o.toLane] : o.lanes;
+        // use the visually-eased lane, not the instantly-committed one — a
+        // hit resolving mid-slide should be judged by where the roach looks
+        // like it is, not by which lane the keypress already logically set
+        var visualLane = Math.round(player.displayLane);
+        if(lanesNow.indexOf(visualLane) !== -1){
+          o.resolved = true;
+          var safe = (o.type === 'air' && player.ducking) || (o.type === 'ground' && !player.grounded);
+          if(!safe){
+            if(player.invincibleT > 0 || player.hitInvulnT > 0){
+              // loophole, or still-flashing from a hit a moment ago: pass through clean
+            } else if(player.shield > 0){
+              player.shield -= 1;
+              flashT = 0.28;
+              player.hitInvulnT = HIT_MERCY_T;
+              playSfx('crash');
+              showHitNotice('Appeal Upheld');
+            } else {
+              player.hp -= 1;
+              flashT = 0.28;
+              player.hitInvulnT = HIT_MERCY_T;
+              playSfx('crash');
+              updateHealthHud();
+              // on the killing blow skip the notice — the splat is the message
+              if(player.hp <= 0){ startDeath(); return; }
+              showHitNotice();
+            }
+          }
+        }
+      }
+    }
+
+    for(var j=powerups.length-1; j>=0; j--){
+      var p = powerups[j];
+      var pPrevDepth = p.depth;
+      p.depth += p.speed * dt;
+      if(p.depth > 1.2){ powerups.splice(j,1); continue; }
+      if(!p.taken && pPrevDepth < PLAYER_DEPTH+0.03 && p.depth >= PLAYER_DEPTH-0.03 && p.lane === Math.round(player.displayLane)){
+        p.taken = true;
+        playSfx('powerup');
+        showPerkNotice(p.id);
+        perkFlashT = 0.3;
+        applyPowerup(p.id, p.duration);
+        powerups.splice(j,1);
+      }
+    }
+  }
+
+  // true only when the actual start screen is showing — NOT when a guide or
+  // leaderboard overlay is open on top of the 'start' state, so a key/tap on
+  // those overlays doesn't accidentally launch a run
+  function onStartScreen(){
+    return state === 'start' && !document.getElementById('start-screen').classList.contains('hidden');
+  }
+
+  function flyStart(){
+    if(onStartScreen()){ startGame(); return; }
+    if(state !== 'playing') return;
+    // held keys fire repeated keydown events — only trigger on the transition,
+    // or the launch sound machine-guns for as long as the key is down
+    if(!player.thrusting){ playSfx('boing'); startFlySfx(); }
+    player.thrusting = true;
+  }
+  function flyEnd(){
+    player.thrusting = false;
+    stopFlySfx();
+  }
+  function duckStart(){
+    if(state !== 'playing') return;
+    if(!player.ducking) playSfx('duck');
+    player.ducking = true;
+    player.thrusting = false; // can't fly and duck at once — no stacking both dodges indefinitely
+    stopFlySfx();
+  }
+  function duckEnd(){
+    player.ducking = false;
+  }
+  function laneLeft(){
+    if(onStartScreen()){ startGame(); return; }
+    if(state !== 'playing') return;
+    var prev = player.lane;
+    player.lane = Math.max(-1, player.lane - 1);
+    if(player.lane !== prev) playSfx('dodge'); // silent when already at the edge
+  }
+  function laneRight(){
+    if(onStartScreen()){ startGame(); return; }
+    if(state !== 'playing') return;
+    var prev = player.lane;
+    player.lane = Math.min(1, player.lane + 1);
+    if(player.lane !== prev) playSfx('dodge');
+  }
+
+  function startGame(){
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('guide-screen').classList.add('hidden');
+    document.getElementById('leaderboard-screen').classList.add('hidden');
+    document.getElementById('gameover-screen').classList.add('hidden');
+    document.getElementById('btn-menu').classList.remove('hidden');
+    stage.classList.add('playing');
+    reset();
+    state = 'playing';
+    playGameMusic();
+  }
+
+  // final hit: cut the run music dead, freeze everything, and hold on the
+  // splat for a beat. gameOver() (verdict screen + sting) fires from update()
+  // once dyingT runs out.
+  function startDeath(){
+    state = 'dying';
+    dyingT = DEATH_HOLD_T;
+    player.thrusting = false;
+    player.ducking = false;
+    player.invincibleT = 0;
+    player.hitInvulnT = 0;
+    flashT = 0.4;
+    stopMusic();
+    stopFlySfx();
+    playSfx('splat');
+    clearHitNotice();
+    document.getElementById('hud-buffs').textContent = '';
+  }
+
+  function gameOver(){
+    state = 'gameover';
+    var d = Math.floor(score);
+    if(d > best){
+      best = d;
+      localStorage.setItem('kafka_castle3d_best', String(best));
+    }
+    document.getElementById('hud-best').textContent = 'BEST: ' + best;
+    document.getElementById('final-distance').textContent = d;
+    document.getElementById('final-best').textContent = best;
+    var caseNo = String(100000 + (d*37 + Math.floor(Math.random()*9999)) % 899999);
+    document.getElementById('case-no').textContent = 'Case No. ' + caseNo;
+
+    // set up score submission for this run
+    stage.classList.remove('playing');
+    lastGameScore = d;
+    scoreSubmitted = false;
+    lastSubmitted = null;
+    document.getElementById('name-saved').textContent = '';
+    var ne = document.getElementById('name-entry');
+    var ni = document.getElementById('name-input');
+    var btnSub = document.getElementById('btn-submit-score');
+    if(d > 0){
+      ne.style.display = '';
+      ni.value = localStorage.getItem(LB_NAME_KEY) || '';
+      ni.disabled = false;
+      btnSub.disabled = false;
+      btnSub.textContent = 'File';
+    } else {
+      ne.style.display = 'none';
+    }
+
+    document.getElementById('gameover-screen').classList.remove('hidden');
+    document.getElementById('hud-buffs').textContent = '';
+    playGameOverMusic();
+  }
+
+  function doSubmitScore(){
+    if(scoreSubmitted) return;
+    var ni = document.getElementById('name-input');
+    var name = (ni.value || '').trim().toUpperCase().slice(0,12);
+    if(!name){ ni.focus(); return; }
+    scoreSubmitted = true;
+    localStorage.setItem(LB_NAME_KEY, name);
+    ni.disabled = true;
+    var btnSub = document.getElementById('btn-submit-score');
+    btnSub.disabled = true;
+    btnSub.textContent = 'Filed';
+    submitScore(name, lastGameScore).then(function(res){
+      lastSubmitted = res.entry;
+      document.getElementById('name-saved').textContent = 'Filed — rank #' + res.rank;
+    });
+  }
+
+  var LB_EMPTY_COPY = {
+    daily:  'Nothing filed today.<br>The day is young.',
+    weekly: 'Nothing filed this week.<br>The week is young.',
+    all:    'No cases on record yet.<br>Be the first to file.'
+  };
+
+  function renderLeaderboard(){
+    Array.prototype.forEach.call(document.querySelectorAll('.lb-tab'), function(t){
+      t.classList.toggle('active', t.getAttribute('data-range') === lbRange);
+    });
+
+    // closed-window bests — something to chase on a board that resets daily
+    var past = pastBests();
+    var pastEl = document.getElementById('lb-past');
+    pastEl.innerHTML = '';
+    [['Yesterday', past.yesterday], ['Last week', past.lastWeek]].forEach(function(pair){
+      var span = document.createElement('span');
+      span.textContent = pair[0] + ': ';
+      var b = document.createElement('b');
+      b.textContent = pair[1] ? (pair[1].score + ' · ' + pair[1].name) : '—';
+      span.appendChild(b);
+      pastEl.appendChild(span);
+    });
+
+    fetchScores(lbRange).then(function(scores){
+      var listEl = document.getElementById('lb-list');
+      var emptyEl = document.getElementById('lb-empty');
+      listEl.innerHTML = '';
+      if(!scores.length){
+        emptyEl.innerHTML = LB_EMPTY_COPY[lbRange] || LB_EMPTY_COPY.all;
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      emptyEl.classList.add('hidden');
+      scores.forEach(function(s, i){
+        var row = document.createElement('div');
+        row.className = 'lb-row' + (lastSubmitted && s.ts === lastSubmitted.ts ? ' you' : '');
+        var rank = document.createElement('span'); rank.className = 'lb-rank'; rank.textContent = '#' + (i+1);
+        var name = document.createElement('span'); name.className = 'lb-name'; name.textContent = s.name || '———';
+        var sc = document.createElement('span'); sc.className = 'lb-score'; sc.textContent = s.score;
+        row.appendChild(rank); row.appendChild(name); row.appendChild(sc);
+        listEl.appendChild(row);
+      });
+    });
+  }
+
+  function openLeaderboard(fromId){
+    lbFrom = fromId;
+    document.getElementById(fromId).classList.add('hidden');
+    document.getElementById('leaderboard-screen').classList.remove('hidden');
+    renderLeaderboard();
+  }
+  function closeLeaderboard(){
+    document.getElementById('leaderboard-screen').classList.add('hidden');
+    document.getElementById(lbFrom).classList.remove('hidden');
+  }
+
+  function returnToMenu(){
+    state = 'start';
+    obstacles = [];
+    powerups = [];
+    stage.classList.remove('playing');
+    stopFlySfx();
+    stopMusic();
+    document.getElementById('gameover-screen').classList.add('hidden');
+    document.getElementById('guide-screen').classList.add('hidden');
+    document.getElementById('leaderboard-screen').classList.add('hidden');
+    document.getElementById('btn-menu').classList.add('hidden');
+    document.getElementById('hud-buffs').textContent = '';
+    document.getElementById('start-screen').classList.remove('hidden');
+    try { window.parent.postMessage({ kafkaGameReturnedToMenu: true }, '*'); } catch(e){}
+  }
+
+  // ---- rendering ----
+
+  function drawSkyFallback(){
+    var g = ctx.createLinearGradient(0,0,0,HORIZON.y+40);
+    g.addColorStop(0,'#131313');
+    g.addColorStop(1,'#0d0d0d');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,LOGICAL_W,HORIZON.y+40);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0,HORIZON.y+40,LOGICAL_W,LOGICAL_H-(HORIZON.y+40));
+
+    // faint radial speed-lines from the vanishing point sell forward motion
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for(var a=0;a<12;a++){
+      var ang = (a/12)*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(HORIZON.x, HORIZON.y);
+      ctx.lineTo(HORIZON.x+Math.cos(ang)*500, HORIZON.y+Math.sin(ang)*500);
+      ctx.stroke();
+    }
+  }
+
+  function drawCastleFallback(){
+    // fixed at the vanishing point, fixed size — this is the whole gag:
+    // no matter how far you run, the castle never grows.
+    var cx = HORIZON.x + Math.sin(sway)*2;
+    var cy = HORIZON.y;
+    var s = 0.34;
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.scale(s,s);
+    ctx.fillStyle = '#1c1a1a';
+    ctx.strokeStyle = 'rgba(198,40,40,0.55)';
+    ctx.lineWidth = 1.5/s;
+    var w=170,h=130;
+    ctx.beginPath();
+    ctx.rect(-w/2,0,w,h);
+    ctx.fill(); ctx.stroke();
+    [ -w/2-14, -18, w/2-6 ].forEach(function(dx,i){
+      var tw=i===1?32:26, th=i===1?46:34;
+      ctx.fillRect(dx,-th+6,tw,th);
+      ctx.strokeRect(dx,-th+6,tw,th);
+      for(var k=0;k<4;k++){ ctx.fillRect(dx+k*(tw/4),-th+2,tw/8,6); }
+    });
+    ctx.fillStyle = 'rgba(198,40,40,0.55)';
+    ctx.fillRect(-6,30,8,12);
+    ctx.restore();
+  }
+
+  function drawBackdrop(){
+    if(ASSETS.bgHorizon){
+      var img = ASSETS.bgHorizon;
+      var drawW = LOGICAL_W;
+      var drawH = drawW * (img.naturalHeight/img.naturalWidth);
+      var horizonFracInImage = 0.60;
+      var drawY = HORIZON.y - drawH*horizonFracInImage;
+      ctx.drawImage(img, 0, drawY, drawW, drawH);
+    } else {
+      drawSkyFallback();
+      drawCastleFallback();
+    }
+  }
+
+  // faint floor light bleeding out from the horizon across the full width,
+  // so the ground either side of the road reads as a dark receding floor
+  // rather than an empty void the road-triangle floats on
+  function drawGroundGlow(){
+    var g = ctx.createLinearGradient(0, HORIZON.y, 0, HORIZON.y + 150);
+    g.addColorStop(0, 'rgba(70,70,76,0.30)');
+    g.addColorStop(1, 'rgba(70,70,76,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, HORIZON.y, LOGICAL_W, 150);
+  }
+
+  // soft mist band across the vanishing point: the road, the ground and the
+  // castle base all dissolve into fog here instead of meeting at a hard
+  // point, and freshly-spawned obstacles fade up out of it
+  function drawHorizonHaze(){
+    var y0 = HORIZON.y - 30, y1 = HORIZON.y + 62;
+    var g = ctx.createLinearGradient(0, y0, 0, y1);
+    g.addColorStop(0, 'rgba(150,148,150,0)');
+    g.addColorStop(0.5, 'rgba(158,156,158,0.30)');
+    g.addColorStop(1, 'rgba(150,148,150,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y0, LOGICAL_W, y1 - y0);
+  }
+
+  // gentle darkening toward the frame edges — focuses the eye down the aisle
+  // and turns the flat black margins into intentional shadow
+  function drawVignette(){
+    var g = ctx.createRadialGradient(
+      LOGICAL_W/2, LOGICAL_H*0.54, LOGICAL_H*0.34,
+      LOGICAL_W/2, LOGICAL_H*0.54, LOGICAL_H*0.95);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  }
+
+  // road geometry straight from a screen-row offset below the horizon, so the
+  // surface can be drawn all the way up to the vanishing point (depth-space
+  // alone can't reach it — yOff→0 is depth→-∞ under the exponential mapping)
+  function roadRow(off){
+    return { y: HORIZON.y + off, halfW: HALFW_BOTTOM * (off / ROAD_SPAN) };
+  }
+  var ROAD_TOP_OFF = 0.75;
+
+  function drawRoad(){
+    var p0 = roadRow(ROAD_TOP_OFF);
+    var p1 = roadRow(ROAD_SPAN);
+    if(ASSETS.roadTex){
+      var tex = ASSETS.roadTex;
+      // .width/.height (not naturalWidth) — stripRoadLines returns a canvas
+      var texW = tex.width, texH = tex.height;
+      // Slice uniformly in SCREEN space (not depth) so every band is the same
+      // few px tall — under the exponential mapping uniform depth steps would
+      // make the near bands enormous and visibly chunky.
+      var ROWS = 46, REPEATS_PER_D = 4;
+      for(var i=0;i<ROWS;i++){
+        var offA = ROAD_TOP_OFF + (ROAD_SPAN-ROAD_TOP_OFF)*(i/ROWS);
+        var offB = ROAD_TOP_OFF + (ROAD_SPAN-ROAD_TOP_OFF)*((i+1)/ROWS);
+        var rA = roadRow(offA), rB = roadRow(offB);
+        // Address the texture in DEPTH space so the surface flows at exactly
+        // the rate obstacles close in. A fixed patch of road has depth
+        // (const + worldScroll), so its identity is (depth - worldScroll) —
+        // note the MINUS: the old (+) made the road stream AWAY from the
+        // player while the rungs and obstacles came toward them.
+        var dA = Math.log(offA/Y_SPAWN)/PERSP_K;
+        var dB = Math.log(offB/Y_SPAWN)/PERSP_K;
+        var vA = (dA - worldScroll) * REPEATS_PER_D;
+        var vB = (dB - worldScroll) * REPEATS_PER_D;
+        var srcY = (((vA % 1) + 1) % 1) * texH;
+        var srcH = Math.min((vB - vA) * texH, texH - srcY);
+        var destH = rB.y - rA.y;
+        if(srcH > 0.5 && destH > 0){
+          var destW = Math.max(rA.halfW, rB.halfW) * 2;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(HORIZON.x-rA.halfW, rA.y);
+          ctx.lineTo(HORIZON.x+rA.halfW, rA.y);
+          ctx.lineTo(HORIZON.x+rB.halfW, rB.y);
+          ctx.lineTo(HORIZON.x-rB.halfW, rB.y);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(tex, 0, srcY, texW, srcH, HORIZON.x-destW/2, rA.y, destW, destH);
+          ctx.restore();
+        }
+      }
+    } else {
+      ctx.fillStyle = '#141210';
+      ctx.beginPath();
+      ctx.moveTo(HORIZON.x-p0.halfW, p0.y);
+      ctx.lineTo(HORIZON.x+p0.halfW, p0.y);
+      ctx.lineTo(HORIZON.x+p1.halfW, p1.y);
+      ctx.lineTo(HORIZON.x-p1.halfW, p1.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // depth haze clipped to the road: the far third fades into the horizon
+    // mist while the near road stays crisp — restores the depth the busy,
+    // uniformly-bright texture was flattening, and hides the hard far vertex
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(HORIZON.x-p0.halfW, p0.y);
+    ctx.lineTo(HORIZON.x+p0.halfW, p0.y);
+    ctx.lineTo(HORIZON.x+p1.halfW, p1.y);
+    ctx.lineTo(HORIZON.x-p1.halfW, p1.y);
+    ctx.closePath();
+    ctx.clip();
+    var rg = ctx.createLinearGradient(0, p0.y, 0, p1.y);
+    rg.addColorStop(0,    'rgba(24,23,27,0.82)');
+    rg.addColorStop(0.38, 'rgba(24,23,27,0.16)');
+    rg.addColorStop(1,    'rgba(24,23,27,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(HORIZON.x-p1.halfW, p0.y, p1.halfW*2, p1.y-p0.y);
+    ctx.restore();
+
+    // Lane dividers, dashed and flowing toward the player. They used to be two
+    // solid rails drawn once from horizon to road bottom — static paint over a
+    // moving surface, which is why they read as stuck. Each dash is a short
+    // span in DEPTH, offset by worldScroll exactly like the rungs and the road
+    // texture, so the whole ground plane now moves as one.
+    ctx.strokeStyle = 'rgba(198,40,40,0.55)';
+    var dashPhase = worldScroll % (1/9);
+    [-0.5, 0.5].forEach(function(b){
+      for(var i=-12;i<=9;i++){
+        var dA = i/9 + dashPhase;
+        if(dA > 1) continue;
+        var dB = Math.min(1, dA + 0.042);
+        var offA = Y_SPAWN * Math.exp(PERSP_K * dA);
+        var offB = Y_SPAWN * Math.exp(PERSP_K * dB);
+        if(offB < ROAD_TOP_OFF) continue;
+        if(offA < ROAD_TOP_OFF) offA = ROAD_TOP_OFF;
+        var rA = roadRow(offA), rB = roadRow(offB);
+        var t = offA / ROAD_SPAN;
+        ctx.lineWidth = Math.max(1, 2.4 * t);
+        ctx.globalAlpha = 0.2 + t * 0.6;   // fade into the distance
+        ctx.beginPath();
+        ctx.moveTo(laneX(b, rA.halfW), rA.y);
+        ctx.lineTo(laneX(b, rB.halfW), rB.y);
+        ctx.stroke();
+      }
+    });
+    ctx.globalAlpha = 1;
+
+    // scrolling rungs sell forward motion; speed matches obstacle closing
+    // rate exactly because both integrate depthSpeed the same way
+    var phase = worldScroll % (1/7);
+    ctx.strokeStyle = 'rgba(232,226,208,0.12)';
+    ctx.lineWidth = 1.5;
+    // negative indices too: the road now reaches the horizon, which is well
+    // above depth 0, so rungs have to populate that stretch as well. Their
+    // depth rises with worldScroll exactly like an obstacle's, so they read
+    // as the same motion — bunching near the horizon and spreading as they
+    // approach is the perspective doing its job, not a speed change.
+    for(var i=-8;i<=7;i++){
+      var d = (i/7 + phase);
+      if(d > 1) continue;
+      var off = Y_SPAWN * Math.exp(PERSP_K * d);  // not projectDepth(): that clamps d at 0
+      if(off < ROAD_TOP_OFF) continue;
+      var rr = roadRow(off);
+      ctx.globalAlpha = 0.12 + (off/ROAD_SPAN)*0.5;
+      ctx.beginPath();
+      ctx.moveTo(HORIZON.x-rr.halfW, rr.y);
+      ctx.lineTo(HORIZON.x+rr.halfW, rr.y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawCabinet(slow){
+    ctx.fillStyle = slow ? '#9a9484' : '#c8c2ae';
+    ctx.fillRect(-20, -46, 40, 46);
+    ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(-20,-46,40,46);
+    for(var d=0; d<3; d++){
+      var dy = -46 + d*15;
+      ctx.strokeRect(-16, dy+2, 32, 11);
+      ctx.fillStyle = '#8c1a1a';
+      ctx.fillRect(-4, dy+6, 8, 3);
+      ctx.fillStyle = slow ? '#9a9484' : '#c8c2ae';
+    }
+    if(slow){
+      ctx.fillStyle = '#e8e2d0';
+      ctx.font = 'bold 9px Courier Prime';
+      ctx.textAlign = 'center';
+      ctx.fillText('PENDING', 0, -50);
+    }
+  }
+  function drawStack(){
+    ctx.fillStyle = '#d8d2bc';
+    for(var st=0; st<4; st++){
+      ctx.save();
+      ctx.translate(0, -8-st*9);
+      ctx.rotate(Math.sin(st*13.1)*0.06);
+      ctx.fillRect(-22, -6, 44, 8);
+      ctx.strokeStyle='#0a0a0a'; ctx.lineWidth=1; ctx.strokeRect(-22,-6,44,8);
+      ctx.restore();
+    }
+  }
+  function drawStamp(o){
+    ctx.save();
+    ctx.translate(0, -133 + Math.sin(elapsed*0.006+laneValueFor(o)*3)*5);
+    ctx.rotate(-0.06);
+    ctx.fillStyle = '#8c1a1a';
+    ctx.fillRect(-26,-12,52,20);
+    ctx.strokeStyle = '#e8e2d0'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(-26,-12,52,20);
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = '12px Courier Prime';
+    ctx.textAlign = 'center';
+    ctx.fillText('DENIED', 0, 4);
+    ctx.restore();
+  }
+  function drawServer(){
+    ctx.strokeStyle = 'rgba(198,40,40,0.45)';
+    ctx.lineWidth = 3;
+    for(var k=0;k<3;k++){
+      ctx.beginPath();
+      ctx.moveTo(-14, -16-k*10);
+      ctx.lineTo(-36, -16-k*10);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#8c1a1a';
+    ctx.beginPath();
+    ctx.moveTo(-18,-40); ctx.lineTo(18,-40); ctx.lineTo(0,-6); ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#e8e2d0'; ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = 'bold 10px Courier Prime';
+    ctx.textAlign = 'center';
+    ctx.fillText('SERVED', 0, -22);
+  }
+  function drawRedTape(w){
+    ctx.save();
+    ctx.translate(0, -133 + Math.sin(elapsed*0.004)*4);
+    ctx.fillStyle = '#8c1a1a';
+    ctx.fillRect(-w/2, -8, w, 16);
+    for(var k=-Math.floor(w/2)+12; k<w/2; k+=24){
+      ctx.save();
+      ctx.translate(k,0);
+      ctx.rotate(-0.5);
+      ctx.fillStyle = 'rgba(232,226,208,0.85)';
+      ctx.fillRect(-9,-9,18,18);
+      ctx.restore();
+    }
+    ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(-w/2,-8,w,16);
+    ctx.restore();
+  }
+  function drawBarricade(w){
+    ctx.fillStyle = '#c8c2ae';
+    ctx.fillRect(-w/2, -50, w, 50);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-w/2,-50,w,50);
+    ctx.clip();
+    ctx.strokeStyle = '#8c1a1a';
+    ctx.lineWidth = 10;
+    for(var x=-w; x<w; x+=26){
+      ctx.beginPath();
+      ctx.moveTo(x,-50); ctx.lineTo(x+50,0);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 2;
+    ctx.strokeRect(-w/2,-50,w,50);
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = 'bold 13px Courier Prime';
+    ctx.textAlign = 'center';
+    ctx.fillText('COURT ORDER', 0, -22);
+  }
+  function drawSubpoena(w){
+    ctx.save();
+    ctx.translate(0, -151);
+    ctx.fillStyle = '#1c1a1a';
+    ctx.fillRect(-w/2,-16,w,32);
+    ctx.strokeStyle = 'rgba(198,40,40,0.6)'; ctx.lineWidth = 2;
+    ctx.strokeRect(-w/2,-16,w,32);
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = 'bold 13px Courier Prime';
+    ctx.textAlign = 'center';
+    ctx.fillText('SUBPOENA — DUCK', 0, 5);
+    ctx.restore();
+  }
+  function drawAuditor(){
+    ctx.fillStyle = '#141210';
+    ctx.beginPath();
+    ctx.ellipse(0,-30,14,26,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle='rgba(198,40,40,0.5)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0,-58,9,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#8c1a1a';
+    ctx.fillRect(10,-24,14,12);
+    ctx.strokeStyle='#e8e2d0'; ctx.lineWidth=1; ctx.strokeRect(10,-24,14,12);
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = 'bold 9px Courier Prime';
+    ctx.textAlign = 'center';
+    ctx.fillText('AUDIT', 0, -72);
+  }
+
+  function drawIconSprite(sprite, meta, targetWidth){
+    var bbox = sprite.bbox;
+    var bboxW = Math.max(1, bbox.maxX - bbox.minX);
+    var sf = targetWidth / bboxW;
+    // heightScale (span items only) compresses vertical size independently
+    // of width — width still matches the full lane span, but the object
+    // no longer grows tall enough up close to blot out whatever's spawning
+    // near the horizon behind it. All Y-axis math below uses hf instead of
+    // sf so the anchor edge (ground/clearance) stays exactly where it was.
+    var hf = sf * (meta.heightScale || 1);
+    var drawW = sprite.canvas.width * sf, drawH = sprite.canvas.height * hf;
+    var dx = -((bbox.minX + bbox.maxX) / 2) * sf;
+    var dy;
+    if(meta.anchor === 'ground'){
+      dy = -bbox.maxY * hf;
+    } else if(meta.anchor === 'hang'){
+      // hangY is the clearance height (how far the BOTTOM edge sits above
+      // the road) — anchoring the top instead (as before) let the actual
+      // clearance drift per-item based on each sprite's own natural height,
+      // which is exactly backwards for "can I duck under this"
+      dy = meta.hangY - bbox.maxY * hf;
+    } else {
+      dy = meta.floatY - ((bbox.minY + bbox.maxY) / 2) * hf;
+    }
+    ctx.drawImage(sprite.canvas, dx, dy, drawW, drawH);
+  }
+
+  // Duck-obstacle rig, drawn in the obstacle's own translated/scaled space
+  // (y = 0 is the road at its depth). Two cues, both diegetic:
+  //  1. A footprint on the road directly beneath it. A hanging item's x is
+  //     geometrically right for its DEPTH, but it renders at a screen row
+  //     where the road is far narrower — with nothing tying it down the eye
+  //     reads it as floating off the side of the track. The footprint states
+  //     which lanes it actually occupies, and the visible gap between the
+  //     footprint and the item is the "you can pass under this" signal.
+  //  2. Suspension lines running up out of frame, so it reads as hung from
+  //     above rather than as an object parked in mid-air. Drawn before the
+  //     sprite so the item covers their lower ends.
+  function drawHangRig(w){
+    // A single strong drop shadow on the road, directly beneath the item at
+    // its OWN depth and lane. This is the only floating cue — suspension lines
+    // and an underside "duck line" were both tried and both just read as ugly
+    // scaffolding stuck onto the scene.
+    //
+    // It carries two jobs at once. It anchors the lane (a hanging item's x is
+    // correct for its depth, but it renders at a screen row where the road is
+    // narrower, so on its own it looks like it drifted off the track), and the
+    // vertical GAP between shadow and item is what communicates height. So the
+    // shadow has to be genuinely dark to register against an already-dark road.
+    var rx = w*0.55, ry = Math.max(3.5, w*0.085);
+    ctx.save();
+    ctx.scale(1, ry/rx);                 // proper elliptical falloff
+    var fg = ctx.createRadialGradient(0, 0, 1, 0, 0, rx);
+    fg.addColorStop(0,   'rgba(0,0,0,0.85)');
+    fg.addColorStop(0.55,'rgba(0,0,0,0.5)');
+    fg.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.arc(0, 0, rx, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawObstacle(o){
+    var pr = projectDepth(o.depth);
+    var laneVal = laneValueFor(o);
+    var x = laneX(laneVal, pr.halfW);
+    var s = pr.scale;
+    var minLane = Math.min.apply(null, o.lanes), maxLane = Math.max.apply(null, o.lanes);
+    var spanWidth = (laneX(maxLane+0.5,pr.halfW) - laneX(minLane-0.5,pr.halfW)) / s;
+    // Dissolve on the way past instead of swelling to fill the frame and then
+    // popping out at the edge — worst on the hanging items, which sweep right
+    // over the camera. Starts only AFTER the collision point (0.9736), so it
+    // can never fade something you still have to react to.
+    var fade = o.depth > 1.0 ? Math.max(0, 1 - (o.depth - 1.0)/0.13) : 1;
+    if(fade <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(x, pr.y);
+    ctx.scale(s,s);
+
+    var sprite = ASSETS.icons && ASSETS.icons[o.kind];
+    if(sprite){
+      var meta = ICON_META[o.kind];
+      if(meta.anchor === 'hang'){
+        drawHangRig(meta.width === 'span' ? spanWidth : meta.width);
+      }
+      // the painted art reads low-contrast against the busy road at small
+      // sizes — brighten/punch it up so what an obstacle actually IS is
+      // legible at a glance, not just "a dark shape incoming"
+      ctx.filter = 'brightness(1.32) contrast(1.12) saturate(1.15)';
+      drawIconSprite(sprite, meta, meta.width === 'span' ? spanWidth : meta.width);
+      ctx.filter = 'none';
+      ctx.restore();
+      return;
+    }
+
+    switch(o.kind){
+      case 'cabinet': drawCabinet(false); break;
+      case 'deskSlow': drawCabinet(true); break;
+      case 'stack': drawStack(); break;
+      case 'stamp': drawStamp(o); break;
+      case 'server': drawServer(); break;
+      case 'redtape': drawRedTape(spanWidth); break;
+      case 'barricade': drawBarricade(spanWidth); break;
+      case 'subpoena': drawSubpoena(spanWidth); break;
+      case 'auditor': drawAuditor(); break;
+    }
+    ctx.restore();
+  }
+
+  // muted institutional green — clearly "safe/good" against the black-and-red
+  // palette without going neon and breaking the bureaucratic-dread look
+  var PERK_GLOW = '104,206,138';
+
+  function drawPowerup(p){
+    var pr = projectDepth(p.depth);
+    var x = laneX(p.lane, pr.halfW);
+    var s = pr.scale;
+    var pulse = 0.85 + Math.sin(elapsed*0.006 + p.lane*2) * 0.15;
+    // a slow bob, distinct from any hazard's motion (hazards only ever
+    // approach — nothing else bobs), so a pickup reads as "different kind
+    // of thing" before you've even parsed the icon
+    var bob = Math.sin(elapsed*0.0032 + p.lane*2) * 7 * s;
+    // same dissolve-on-pass as obstacles (see drawObstacle)
+    var fade = p.depth > 1.0 ? Math.max(0, 1 - (p.depth - 1.0)/0.13) : 1;
+    if(fade <= 0) return;
+
+    var sprite = ASSETS.icons && ASSETS.icons[p.id];
+    if(sprite){
+      var meta = ICON_META[p.id];
+      // Every perk glows green. Red is this game's hazard colour everywhere
+      // else (lane lines, DENIED, damage notices), so a red-glowing pickup
+      // read as something to avoid — the Insider Tip especially.
+      var glowColor = PERK_GLOW;
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(x, pr.y + bob - 30*s);
+      // wide soft halo behind the icon — makes a pickup visible as a bright
+      // patch well before it's close enough to read as a specific icon
+      var haloR = 55*s;
+      var halo = ctx.createRadialGradient(0,0,2, 0,0,haloR);
+      halo.addColorStop(0, 'rgba('+glowColor+',0.45)');
+      halo.addColorStop(1, 'rgba('+glowColor+',0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(0,0,haloR,0,Math.PI*2); ctx.fill();
+      // slow-rotating dashed ring — an unmistakable "this is a pickup" tell
+      // independent of the artwork itself
+      ctx.save();
+      ctx.rotate(elapsed*0.0012);
+      ctx.strokeStyle = 'rgba('+glowColor+',0.6)';
+      ctx.lineWidth = 2*s;
+      ctx.setLineDash([6*s,5*s]);
+      ctx.beginPath(); ctx.arc(0,0,32*s,0,Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      ctx.translate(0, 30*s);
+      ctx.scale(s*pulse, s*pulse);
+      ctx.shadowColor = 'rgba('+glowColor+',0.95)';
+      ctx.shadowBlur = 22;
+      drawIconSprite(sprite, meta, meta.width);
+      ctx.restore();
+      return;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(x, pr.y - 34*s);
+    ctx.scale(s*pulse, s*pulse);
+    var glow2 = 'rgba(' + PERK_GLOW + ',0.9)';
+    ctx.shadowColor = glow2;
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = '#141210';
+    ctx.beginPath();
+    ctx.arc(0,0,20,0,Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgb(' + PERK_GLOW + ')';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#e8e2d0';
+    ctx.font = 'bold 16px Courier Prime';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var glyph = p.id==='loophole' ? '∞' : p.id==='tip' ? '2×' : p.id==='refund' ? '✓' : '§';
+    ctx.fillText(glyph, 0, 1);
+    ctx.restore();
+  }
+
+  // Strobe while the post-hit mercy window is open. Never goes fully
+  // invisible — a hard on/off blink loses the roach against the dark road.
+  function hitFlickerAlpha(){
+    if(player.hitInvulnT <= 0) return 1;
+    return Math.sin(elapsed*0.055) >= 0 ? 1 : 0.28;
+  }
+
+  function pickPlayerSprite(){
+    // Hold the flinch for the WHOLE mercy window and alternate the two poses,
+    // so it staggers rather than freezing. Combined with the strobe this is
+    // the damage tell. Falls through to the usual poses if the art is absent.
+    if(player.hitInvulnT > 0 && ASSETS.roachHitA && ASSETS.roachHitB){
+      return Math.sin(player.runPhase*2.5) >= 0 ? ASSETS.roachHitA : ASSETS.roachHitB;
+    }
+    if(!player.grounded){
+      // real flap-cycle art if it's been generated, otherwise fall back to
+      // the single static jump pose held for the whole flight (matches the
+      // game's existing "never break on a missing asset" behavior)
+      if(ASSETS.roachFlyA && ASSETS.roachFlyB){
+        return Math.sin(player.flyPhase) >= 0 ? ASSETS.roachFlyA : ASSETS.roachFlyB;
+      }
+      return ASSETS.roachJump;
+    }
+    if(player.ducking) return ASSETS.roachDuck;
+    return Math.sin(player.runPhase) >= 0 ? ASSETS.roachRunA : ASSETS.roachRunB;
+  }
+
+  function drawPlayerContrastPatch(x, groundY, s){
+    // the road art is busy/bright enough that the roach's own dark shell
+    // tones can blend into it — a soft dark pool under the character gives
+    // it somewhere darker to stand out against, on top of the contact shadow
+    var r = 95 * s;
+    var g = ctx.createRadialGradient(x, groundY-10*s, 4, x, groundY-10*s, r);
+    g.addColorStop(0, 'rgba(0,0,0,0.55)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(x, groundY-10*s, r, r*0.8, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Splat is wider and flatter than any upright pose, so it gets its own
+  // target width rather than reusing TARGET_BBOX_W — the sizing scales off
+  // bbox width, and a splayed splat's bbox is mostly spatter, not body.
+  // (Same trap the flight poses hit; check window.__debug.charBoxes().)
+  var SPLAT_TARGET_W = 150;
+
+  function drawSplat(x, groundY, s){
+    var sprite = ASSETS.roachSplat;
+    ctx.save();
+    // The splat art is a top-down view of something lying flat on the road,
+    // but every other sprite stands upright facing the camera. Drawn
+    // unforeshortened it reads as standing on end and spills past the road's
+    // bottom edge, so it gets squashed vertically onto the ground plane and
+    // nudged up-screen to sit fully on visible road.
+    ctx.translate(x, groundY - 26*s);
+    ctx.scale(s, s*0.55);
+    if(sprite && sprite.canvas){
+      var bbox = sprite.bbox;
+      var bw = Math.max(1, bbox.maxX - bbox.minX);
+      var sf = SPLAT_TARGET_W / bw;
+      // centred on the bbox in BOTH axes — a splat lies flat on the road
+      // rather than standing on it, so it isn't bottom-anchored
+      var dx = -((bbox.minX + bbox.maxX)/2) * sf;
+      var dy = -((bbox.minY + bbox.maxY)/2) * sf;
+      ctx.drawImage(sprite.canvas, dx, dy, sprite.canvas.width*sf, sprite.canvas.height*sf);
+    } else {
+      // procedural splatter stand-in until cockroach_splat.png exists
+      ctx.fillStyle = 'rgba(86,12,12,0.9)';
+      [[0,0,46,20],[-30,-6,20,10],[28,4,17,9],[-14,10,13,7],[18,-12,12,6],[-40,6,9,5],[40,-4,8,4]]
+        .forEach(function(b){
+          ctx.beginPath();
+          ctx.ellipse(b[0],b[1],b[2],b[3],0,0,Math.PI*2);
+          ctx.fill();
+        });
+      ctx.fillStyle = 'rgba(30,26,22,0.95)';
+      ctx.beginPath();
+      ctx.ellipse(0,0,30,12,0,0,Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(44,35,26,0.95)';
+      ctx.lineWidth = 3;
+      [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0]].forEach(function(v,i){
+        ctx.beginPath();
+        ctx.moveTo(v[0]*14, v[1]*6);
+        ctx.lineTo(v[0]*(34+i*3), v[1]*(16+i*2));
+        ctx.stroke();
+      });
+    }
+    ctx.restore();
+  }
+
+  function drawPlayer(){
+    var pr = projectDepth(PLAYER_DEPTH);
+    var x = laneX(player.displayLane, pr.halfW);
+    var s = pr.scale;
+    var groundY = pr.y;
+    var jumpPix = player.height * s * 0.55;
+    var duck = player.ducking && player.grounded;
+    // Squashing alone kept the sprite's contact point fixed, so ducking read as
+    // "same height, slightly shorter" rather than getting low. Drop the whole
+    // silhouette — sprite, shadow and contrast pool together — so it visibly
+    // hunkers toward the road.
+    var duckDrop = duck ? 18 * s : 0;
+    var baseY = groundY + duckDrop;
+
+    drawPlayerContrastPatch(x, baseY, s);
+    if(state === 'dying'){
+      drawSplat(x, groundY, s);
+      return;
+    }
+
+    var sprite = pickPlayerSprite();
+    if(sprite && sprite.canvas){
+      // sprites aren't framed consistently in their source canvas (e.g. the
+      // jump pose sits well left-of-center) — center on each one's actual
+      // content bounding box rather than its raw canvas, so poses don't
+      // visually jump sideways when swapped
+      var bbox = sprite.bbox;
+      var natW = sprite.canvas.width, natH = sprite.canvas.height;
+      var bboxW = Math.max(1, bbox.maxX - bbox.minX);
+      var TARGET_BBOX_W = 115;
+      // the fly poses' bbox is now mostly wingspan, not body — the actual
+      // body occupies a much smaller fraction of that same-sized box than
+      // it does in the run/jump/duck poses, so sizing off bbox width alone
+      // (as if it were still ~all body) renders the body too small. Boost
+      // compensates; tuned by eye against the grounded run pose.
+      var sizeBoost = (sprite===ASSETS.roachFlyA || sprite===ASSETS.roachFlyB) ? 2.0 : 1.0;
+      var sf = (TARGET_BBOX_W / bboxW) * sizeBoost;
+      var drawW = natW * sf, drawH = natH * sf;
+      var dx = -((bbox.minX + bbox.maxX) / 2) * sf;
+      var dy = -2 - bbox.maxY * sf;
+      ctx.save();
+      ctx.globalAlpha = hitFlickerAlpha();
+      ctx.translate(x, baseY - jumpPix);
+      ctx.scale(s, s);
+      // the DROP above is what sells the duck; the squash is only a light
+      // assist — flattening much past this makes the dark roach unreadable
+      if(duck) ctx.scale(1.14, 0.60);
+      if(!player.grounded) ctx.rotate(Math.min(0.1, Math.max(-0.1, -player.vy*0.00018)));
+      ctx.drawImage(sprite.canvas, dx, dy, drawW, drawH);
+      // Loophole = invincible, so the roach strobes yellow/green over itself.
+      // brightness(0) flattens the sprite to a solid silhouette while keeping
+      // its alpha, invert(1) makes it white, then sepia+saturate+hue-rotate
+      // tints that — the reliable way to recolour art this dark, since
+      // hue-rotate alone does nothing to near-black pixels.
+      if(player.invincibleT > 0){
+        ctx.globalAlpha = 0.8;
+        var starHue = (Math.floor(elapsed/110) % 2) ? 18 : 88;  // yellow / green
+        ctx.filter = 'brightness(0) invert(1) sepia(1) saturate(9) hue-rotate(' + starHue + 'deg)';
+        ctx.drawImage(sprite.canvas, dx, dy, drawW, drawH);
+        ctx.filter = 'none';
+      }
+      ctx.restore();
+      return;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = hitFlickerAlpha();
+    ctx.translate(x, baseY - jumpPix);
+    ctx.scale(s, s);
+    if(duck) ctx.scale(1.16, 0.55);
+    if(!player.grounded) ctx.rotate(Math.min(0.12, Math.max(-0.12, -player.vy*0.00025)));
+
+    var bw = 30, bh = 20;
+    var strideL = Math.sin(player.runPhase) * (player.grounded?7:0);
+    var strideR = Math.sin(player.runPhase+Math.PI) * (player.grounded?7:0);
+
+    // legs, three per side, visible past the shell edge (back view)
+    ctx.strokeStyle = '#5a4a36';
+    ctx.lineWidth = 2.4;
+    for(var l=0;l<3;l++){
+      var ly = -6 + l*6;
+      ctx.beginPath();
+      ctx.moveTo(-bw/2+2, ly);
+      ctx.lineTo(-bw/2-8+strideL*0.4, ly+8);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bw/2-2, ly);
+      ctx.lineTo(bw/2+8+strideR*0.4, ly+8);
+      ctx.stroke();
+    }
+
+    // shell — two back-plate halves split down the middle, seen from behind
+    ctx.fillStyle = '#4a3c2a';
+    ctx.strokeStyle = 'rgba(232,226,208,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(-bw/4, 0, bw/4+1, bh/2, 0, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(bw/4, 0, bw/4+1, bh/2, 0, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke();
+
+    // center stripe (the only warm accent, echoes the castle's window)
+    ctx.strokeStyle = 'rgba(198,40,40,0.65)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0,-bh/2+2); ctx.lineTo(0,bh/2-2);
+    ctx.stroke();
+
+    // antennae, just visible over the shoulders
+    ctx.strokeStyle = '#5a4a36';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-6,-bh/2); ctx.lineTo(-10,-bh/2-9);
+    ctx.moveTo(6,-bh/2); ctx.lineTo(10,-bh/2-9);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function render(){
+    // `scale` in resize() is derived from WIDTH alone, so whenever the stage is
+    // narrower than the designed 900x506 the canvas exposes far more logical
+    // rows than 506 — measured at ~861 on a portrait phone. That band sits
+    // below the play area and was showing passed obstacles rendered at huge
+    // scale over the controls. Clear the whole surface in device pixels, then
+    // clip every draw to the designed play area so the excess stays empty.
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,0,LOGICAL_W,LOGICAL_H);
+    ctx.clip();
+
+    drawBackdrop();
+    drawGroundGlow();
+    drawRoad();
+    drawHorizonHaze();
+
+    var sorted = obstacles.slice().sort(function(a,b){ return a.depth - b.depth; });
+    sorted.forEach(drawObstacle);
+    powerups.slice().sort(function(a,b){ return a.depth - b.depth; }).forEach(drawPowerup);
+    drawPlayer();
+
+    drawVignette();
+
+    if(flashT > 0){
+      // clamped: startDeath() uses a longer flashT than a normal hit, and the
+      // raw ratio would push the wash past 0.6 alpha and bury the splat
+      ctx.fillStyle = 'rgba(198,40,40,' + Math.min(0.45, flashT/0.28*0.45) + ')';
+      ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+    }
+    if(perkFlashT > 0){
+      // gentler than the damage flash — an acknowledgement, not an alarm
+      ctx.fillStyle = 'rgba(104,206,138,' + (perkFlashT/0.3*0.3) + ')';
+      ctx.fillRect(0,0,LOGICAL_W,LOGICAL_H);
+    }
+
+    ctx.restore();
+  }
+
+  var DEBUG_FAST = /[?&]fast=1/.test(location.search);
+  var lastT = null;
+  function loop(t){
+    if(lastT===null) lastT = t;
+    var dt = Math.min(34, t - lastT);
+    lastT = t;
+    if(DEBUG_FAST) dt *= 12;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // input
+  // ignore game keys while typing into a field (the game-over name entry)
+  function typingInField(e){
+    var t = e.target;
+    return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+  }
+  window.addEventListener('keydown', function(e){
+    if(typingInField(e)) return;
+    if(e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW'){ e.preventDefault(); flyStart(); }
+    if(e.code === 'ArrowDown' || e.code === 'KeyS'){ e.preventDefault(); duckStart(); }
+    if(e.code === 'ArrowLeft' || e.code === 'KeyA'){ e.preventDefault(); laneLeft(); }
+    if(e.code === 'ArrowRight' || e.code === 'KeyD'){ e.preventDefault(); laneRight(); }
+  });
+  window.addEventListener('keyup', function(e){
+    if(typingInField(e)) return;
+    if(e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW'){ flyEnd(); }
+    if(e.code === 'ArrowDown' || e.code === 'KeyS'){ duckEnd(); }
+  });
+
+  function bindBtn(id, onDown, onUp){
+    var el = document.getElementById(id);
+    el.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      el.classList.add('active');
+      onDown();
+    });
+    if(onUp){
+      var release = function(){ el.classList.remove('active'); onUp(); };
+      el.addEventListener('pointerup', release);
+      el.addEventListener('pointerleave', release);
+      el.addEventListener('pointercancel', release);
+    } else {
+      el.addEventListener('pointerup', function(){ el.classList.remove('active'); });
+    }
+  }
+  bindBtn('btn-up', flyStart, flyEnd);
+  bindBtn('btn-down', duckStart, duckEnd);
+  bindBtn('btn-left', laneLeft);
+  bindBtn('btn-right', laneRight);
+
+  document.getElementById('btn-start').addEventListener('click', startGame);
+  document.getElementById('btn-retry').addEventListener('click', startGame);
+
+  document.getElementById('btn-mute').addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    setMuted(!AUDIO.muted);
+  });
+
+  window.addEventListener('storage', function(e){
+    if(e.key !== 'kafka_muted') return;
+    var m = e.newValue === '1';
+    if(m === AUDIO.muted) return;
+    setMuted(m);
+  });
+
+  document.getElementById('btn-menu').addEventListener('pointerdown', function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    returnToMenu();
+  });
+
+  var guidePopulated = false;
+  function populateGuide(){
+    if(guidePopulated) return;
+    var hazardsEl = document.getElementById('guide-hazards');
+    var perksEl = document.getElementById('guide-perks');
+    ITEM_GUIDE.forEach(function(item){
+      var row = document.createElement('div');
+      row.className = 'guide-row';
+      var icon = document.createElement('img');
+      icon.className = 'guide-icon';
+      var sprite = ASSETS.icons && ASSETS.icons[item.id];
+      if(sprite){ icon.src = spriteImageSrc(sprite); }
+      var text = document.createElement('div');
+      text.className = 'guide-text';
+      var name = document.createElement('div');
+      name.className = 'guide-name';
+      name.textContent = item.name;
+      var desc = document.createElement('div');
+      desc.className = 'guide-desc';
+      desc.textContent = item.desc;
+      text.appendChild(name);
+      text.appendChild(desc);
+      if(item.category === 'hazard'){
+        var rarity = document.createElement('div');
+        rarity.className = 'guide-rarity ' + item.rarity;
+        rarity.textContent = item.rarity;
+        text.appendChild(rarity);
+      }
+      row.appendChild(icon);
+      row.appendChild(text);
+      (item.category === 'hazard' ? hazardsEl : perksEl).appendChild(row);
+    });
+    guidePopulated = true;
+  }
+
+  document.getElementById('btn-guide').addEventListener('click', function(){
+    populateGuide();
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('guide-screen').classList.remove('hidden');
+  });
+  document.getElementById('btn-guide-back').addEventListener('click', function(){
+    document.getElementById('guide-screen').classList.add('hidden');
+    document.getElementById('start-screen').classList.remove('hidden');
+  });
+
+  document.getElementById('btn-leaderboard').addEventListener('click', function(){
+    openLeaderboard('start-screen');
+  });
+  document.getElementById('btn-gameover-lb').addEventListener('click', function(){
+    openLeaderboard('gameover-screen');
+  });
+  document.getElementById('btn-lb-back').addEventListener('click', closeLeaderboard);
+  Array.prototype.forEach.call(document.querySelectorAll('.lb-tab'), function(tab){
+    tab.addEventListener('click', function(){
+      lbRange = tab.getAttribute('data-range');
+      renderLeaderboard();
+    });
+  });
+  document.getElementById('btn-submit-score').addEventListener('click', doSubmitScore);
+  document.getElementById('name-input').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); doSubmitScore(); }
+    e.stopPropagation();
+  });
+
+  if(/[?&]debug=1/.test(location.search)){
+    window.__debug = {
+      step: function(ms){ update(ms); },
+      forceStart: startGame,
+      state: function(){
+        return {
+          state: state, distance: Math.round(distance), score: Math.round(score),
+          depthSpeed: Math.round(depthSpeed*1000)/1000,
+          player: { lane: player.lane, grounded: player.grounded, ducking: player.ducking,
+            thrusting: player.thrusting, height: Math.round(player.height*10)/10, vy: Math.round(player.vy),
+            invincibleT: Math.round(player.invincibleT*10)/10, scoreMultT: Math.round(player.scoreMultT*10)/10,
+            shield: player.shield, hp: player.hp, hitInvulnT: Math.round(player.hitInvulnT*10)/10 },
+          obstacles: obstacles.map(function(o){
+            return { kind:o.kind, type:o.type, lanes:o.lanes.slice(), depth:Math.round(o.depth*1000)/1000,
+              speed:Math.round(o.speed*1000)/1000, moving:!!o.moving, toLane:o.toLane };
+          }),
+          elapsedSec: Math.round(elapsedSec*10)/10,
+          powerups: powerups.map(function(p){ return { id:p.id, lane:p.lane, depth:Math.round(p.depth*1000)/1000 }; })
+        };
+      },
+      spawnLog: function(){ return _debugSpawnLog; },
+      powerupLog: function(){ return _debugPowerupLog; },
+      godMode: function(){ player.invincibleT = 999999; },
+      damage: function(){ player.hp = Math.max(0, player.hp-1); updateHealthHud(); },
+      grant: function(id){ applyPowerup(id, id==='loophole'?5:id==='tip'?6:0); },
+      icons: function(){
+        var out = {};
+        Object.keys(ASSETS.icons||{}).forEach(function(k){
+          var it = ASSETS.icons[k];
+          out[k] = { w: it.canvas.width, h: it.canvas.height, bbox: it.bbox };
+        });
+        return out;
+      },
+      iconBlobs: function(){ return _lastIconBlobs; },
+      charBoxes: function(){
+        var out = {};
+        ['roachRunA','roachRunB','roachJump','roachDuck','roachFlyA','roachFlyB',
+         'roachHitA','roachHitB','roachSplat'].forEach(function(k){
+          var a = ASSETS[k];
+          if(a) out[k] = { w: a.canvas.width, h: a.canvas.height, bbox: a.bbox };
+        });
+        return out;
+      },
+      placeObstacle: function(kind, lane, depth, extra){
+        var o = { depth: depth!=null?depth:0.9, lanes:[lane||0],
+          type: OBSTACLE_DEFS.filter(function(d){return d.id===kind;})[0].category,
+          kind: kind, speed: 0, resolved: true };
+        if(extra) Object.assign(o, extra);
+        obstacles.push(o);
+      },
+      // taken:true/speed:0 by default so it just sits there for visual
+      // inspection; pass {taken:false, speed:…, duration:…} to test collection
+      placePowerup: function(id, lane, depth, opts){
+        var o = { depth: depth!=null?depth:0.85, lane: lane||0, id: id, duration:0, taken:true, speed:0 };
+        if(opts) Object.assign(o, opts);
+        powerups.push(o);
+      },
+      clearField: function(){ obstacles=[]; powerups=[]; }
+    };
+  }
+
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
