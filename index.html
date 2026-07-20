@@ -316,6 +316,35 @@
     .rotate-hint{ display:block; }
   }
 
+  /* ---------- the clerk teaser ---------- */
+  .clerk-teaser{
+    max-width:800px;margin:0 auto;
+    text-align:center;
+  }
+  .clerk-teaser img{
+    width:100%;max-width:600px;margin:0 auto 30px;
+    border:1px solid rgba(217,201,164,0.15);
+    box-shadow:0 20px 60px rgba(0,0,0,0.7);
+  }
+  .clerk-teaser h3{
+    font-size:clamp(22px,4vw,32px);
+    color:var(--paper-hi);
+    margin-bottom:12px;
+  }
+  .clerk-teaser p{
+    font-size:14px;color:var(--sepia-2);
+    max-width:520px;margin:0 auto 8px;
+  }
+  .clerk-tag{
+    display:inline-block;
+    margin-top:18px;
+    font-family:'Special Elite',monospace;
+    font-size:11px;letter-spacing:4px;text-transform:uppercase;
+    color:var(--red-bright);
+    border:1px solid var(--red-bright);
+    padding:6px 18px;
+  }
+
   /* ---------- filed under (links) ---------- */
   .drawers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:30px;}
   .drawer{
@@ -677,6 +706,27 @@
       Arrow keys or the on-screen controls. Furthest distance is recorded.
       Nobody has reached The Castle yet.
     </p>
+  </div>
+</section>
+
+<!-- ============ THE CLERK TEASER ============ -->
+<section class="floor" id="clerk">
+  <div class="floor-bg" data-depth="0.20" style="background-image:url('Web Imagery/bg6.png');"></div>
+  <div class="floor-veil"></div>
+  <div class="floor-inner">
+    <div class="clerk-teaser rise">
+      <img src="Web Imagery/botteaser.png" alt="The Clerk">
+      <h3>The Clerk</h3>
+      <p>
+        Your portfolio. Your trades. Your patterns. Tracked across Solana, Ethereum,
+        Base, and Robinhood — with one-tap trading, token scanning, and the only
+        weekly report honest enough to tell you what you keep doing wrong.
+      </p>
+      <p style="color:#a08f6d;font-size:12px;margin-top:14px;">
+        Telegram bot. Multi-chain. Part of the $KAFKA ecosystem.
+      </p>
+      <span class="clerk-tag">Coming Soon</span>
+    </div>
   </div>
 </section>
 
