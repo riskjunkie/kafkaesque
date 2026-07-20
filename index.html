@@ -151,13 +151,16 @@
   }
   .splash-glow.lit{ opacity:1; }
   .splash-sound{
-    position:absolute;bottom:28px;left:0;right:0;z-index:1;
-    text-align:center;
+    position:absolute;bottom:18%;right:12%;z-index:1;
     font-family:'Special Elite',monospace;
-    font-size:14px;letter-spacing:4px;text-transform:uppercase;
+    font-size:13px;letter-spacing:3px;text-transform:uppercase;
     color:#d9c9a4;
     text-shadow:0 0 12px rgba(198,40,40,0.6), 0 0 30px rgba(198,40,40,0.3);
+    transform:rotate(-4deg);
     animation:pulse-sound 2.4s ease-in-out infinite;
+  }
+  @media (max-width:768px) and (orientation:portrait){
+    .splash-sound{ bottom:12%; right:8%; font-size:11px; }
   }
   @keyframes pulse-sound{0%,100%{opacity:.5;}50%{opacity:1;}}
   @media (max-width:768px) and (orientation:portrait){
