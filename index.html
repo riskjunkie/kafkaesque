@@ -297,6 +297,11 @@
     width:100%;
     aspect-ratio:900/506;
   }
+  .game-overlay{
+    position:absolute;inset:0;z-index:1;
+    cursor:pointer;
+  }
+  .game-overlay.hidden{display:none;}
   .game-note{
     text-align:center;font-size:11px;color:#8a7c5f;margin-top:10px;letter-spacing:1px;
   }
@@ -691,7 +696,8 @@
 
     <p class="rotate-hint rise"><span>&#x1F4F1;</span> Rotate your phone for the best experience</p>
     <div class="game-frame rise">
-      <iframe src="the-castle.html" title="$KAFKA — The Castle" loading="lazy"
+      <div class="game-overlay" id="game-overlay"></div>
+      <iframe id="game-iframe" src="the-castle.html" title="$KAFKA — The Castle" loading="lazy"
               allow="autoplay" scrolling="no"></iframe>
     </div>
     <p class="game-note rise">
@@ -790,6 +796,17 @@
 
 <script>
 (function(){
+  /* ---- game overlay: lets page scroll over the iframe, tap to activate ---- */
+  var gOverlay = document.getElementById('game-overlay');
+  gOverlay.addEventListener('click', function(){
+    gOverlay.classList.add('hidden');
+  });
+  document.addEventListener('click', function(e){
+    if(!document.getElementById('game-iframe').contains(e.target) && !gOverlay.contains(e.target)){
+      gOverlay.classList.remove('hidden');
+    }
+  });
+
   /* ---- reveal on approach ---- */
   var rises = document.querySelectorAll('.rise');
   if('IntersectionObserver' in window){
