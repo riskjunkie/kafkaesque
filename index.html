@@ -160,20 +160,33 @@
     animation:pulse-sound 2.4s ease-in-out infinite;
   }
   @keyframes pulse-sound{0%,100%{opacity:.5;}50%{opacity:1;}}
+  .splash-vignette{
+    display:none;
+    position:absolute;inset:0;z-index:1;
+    pointer-events:none;
+  }
   @media (max-width:768px) and (orientation:portrait){
     .splash-wrap{
-      position:absolute;inset:0;
+      position:absolute;
+      top:8%;bottom:8%;left:0;right:0;
       display:grid;place-items:center;
     }
     .splash-wrap > *{
       grid-area:1/1;
     }
     .splash-wrap img{
-      object-fit:contain;
-      width:100%;height:auto;
+      object-fit:cover;
+      object-position:center 42%;
+      width:100%;height:100%;
     }
     .splash-glow{
       position:relative;inset:auto;
+    }
+    .splash-vignette{
+      display:block;
+      background:
+        linear-gradient(to bottom, #0b0a08 0%, transparent 12%),
+        linear-gradient(to top, #0b0a08 0%, transparent 12%);
     }
   }
 
@@ -488,6 +501,7 @@
     <img src="Web Imagery/enter.png" alt="The Summons" draggable="false">
     <img class="splash-glow" id="splash-glow" src="Web Imagery/enter2.png" alt="" draggable="false">
   </div>
+  <div class="splash-vignette"></div>
 </div>
 
 <div class="site-mute" id="site-mute" title="Mute">♪</div>
