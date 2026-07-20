@@ -434,7 +434,7 @@
   .site-mute.is-muted{color:#7d6f52;}
 
   /* ---------- reveal ---------- */
-  .rise{opacity:0;transform:translateY(26px);transition:opacity .8s ease, transform .8s cubic-bezier(.2,.8,.3,1);}
+  .rise{opacity:0;transform:translateY(32px);transition:opacity 1.8s ease, transform 1.8s cubic-bezier(.16,.7,.3,1);}
   .rise.in{opacity:1;transform:none;}
 
   /* ---------- footer ---------- */
@@ -849,7 +849,7 @@
       });
     }, {rootMargin:'0px 0px -12% 0px', threshold:0.08});
     rises.forEach(function(el, i){
-      el.style.transitionDelay = ((i % 4) * 90) + 'ms';
+      el.style.transitionDelay = ((i % 4) * 150) + 'ms';
       io.observe(el);
     });
   } else {
